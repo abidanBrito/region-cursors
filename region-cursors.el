@@ -38,16 +38,16 @@
   :type 'boolean
   :group 'region-cursors)
 
-(defvar region-cursors--point-overlay nil
+(defvar-local region-cursors--point-overlay nil
   "Overlay for the point position.")
 
-(defvar region-cursors--mark-overlay nil
+(defvar-local region-cursors--mark-overlay nil
   "Overlay for the mark position.")
 
-(defvar region-cursors--original-cursor-type nil
+(defvar-local region-cursors--original-cursor-type nil
   "Storage for original cursor type.")
 
-(defvar region-cursors--region-was-active nil
+(defvar-local region-cursors--region-was-active nil
   "Track if region was active in the previous update.")
 
 ;;;###autoload
@@ -143,9 +143,8 @@ Returns the created overlay."
 
 (defun region-cursors--enable ()
   "Enable region cursors mode."
-  ;; Store original cursor type only if not already stored
-  (unless region-cursors--original-cursor-type
-    (setq region-cursors--original-cursor-type cursor-type))
+  ;; NOTE(abi): we always store it so each buffer gets its own cursor.
+  (setq region-cursors--original-cursor-type cursor-type)
   
   ;; Initial update
   (region-cursors--update-overlays)
@@ -154,6 +153,7 @@ Returns the created overlay."
   (add-hook 'post-command-hook #'region-cursors--update-overlays)
   (add-hook 'activate-mark-hook #'region-cursors--update-overlays)
   (add-hook 'deactivate-mark-hook #'region-cursors--update-overlays)
+  (add-hook 'buffer-list-update-hook #'region-cursors--update-overlays)
   (add-hook 'window-selection-change-functions #'region-cursors--window-change-function))
 
 (defun region-cursors--disable ()
@@ -168,6 +168,7 @@ Returns the created overlay."
   (remove-hook 'post-command-hook #'region-cursors--update-overlays)
   (remove-hook 'activate-mark-hook #'region-cursors--update-overlays)
   (remove-hook 'deactivate-mark-hook #'region-cursors--update-overlays)
+  (remove-hook 'buffer-list-update-hook #'region-cursors--update-overlays)
   (remove-hook 'window-selection-change-functions #'region-cursors--window-change-function)
   
   ;; Reset state
