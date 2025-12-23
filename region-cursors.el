@@ -59,6 +59,11 @@
   :type 'boolean
   :group 'region-cursors)
 
+(defcustom region-cursors-disabled-modes '()
+  "Major modes where `region-cursors' should not activate."
+  :type '(repeat symbol)
+  :group 'region-cursors)
+
 (defvar-local region-cursors--point-overlay nil
   "Overlay for the point position.")
 
@@ -187,7 +192,6 @@
        (global-hl-line-mode 1)))
     (setq region-cursors--hl-line-was-active nil)))
 
-
 (defun region-cursors--cleanup-point-mark-overlays ()
   "Remove point and mark cursor overlays."
   (when (overlayp region-cursors--point-overlay)
@@ -300,63 +304,64 @@ Returns nil if rectangle is not valid (single line or column)."
 
 (defun region-cursors--update ()
   "Update region cursor overlays."
-  (let ((region-active (use-region-p))
-        (rect-active (region-cursors--rectangle-active-p)))
-    (cond
-     ;; Activation
-     ((and region-active (not region-cursors--region-was-active))
-      (setq region-cursors--region-was-active t)
-      (region-cursors--hide-cursor)
-      (region-cursors--disable-hl-line)
-      (region-cursors--start-blink-timer))
+  (unless (memq major-mode region-cursors-disabled-modes)
+    (let ((region-active (use-region-p))
+          (rect-active (region-cursors--rectangle-active-p)))
+      (cond
+       ;; Activation
+       ((and region-active (not region-cursors--region-was-active))
+	(setq region-cursors--region-was-active t)
+	(region-cursors--hide-cursor)
+	(region-cursors--disable-hl-line)
+	(region-cursors--start-blink-timer))
 
-     ;; Deactivation
-     ((and (not region-active) region-cursors--region-was-active)
-      (setq region-cursors--region-was-active nil)
-      (region-cursors--cleanup)
-      (region-cursors--restore-hl-line)
-      (region-cursors--restore-cursor)))
+       ;; Deactivation
+       ((and (not region-active) region-cursors--region-was-active)
+	(setq region-cursors--region-was-active nil)
+	(region-cursors--cleanup)
+	(region-cursors--restore-hl-line)
+	(region-cursors--restore-cursor)))
 
-    ;; Rendering
-    (when region-active
-      (region-cursors--hide-cursor)
+      ;; Rendering
+      (when region-active
+	(region-cursors--hide-cursor)
 
-      ;; Rectangle mode
-      (if rect-active
-          (let ((corners (region-cursors--get-rectangle-corners)))
-            (when corners
-              (unless (overlayp region-cursors--rect-top-left-overlay)
-                (setq region-cursors--rect-top-left-overlay
-                      (region-cursors--make-overlay (nth 0 corners))))
-              (unless (overlayp region-cursors--rect-top-right-overlay)
-                (setq region-cursors--rect-top-right-overlay
-                      (region-cursors--make-overlay (nth 1 corners))))
-              (unless (overlayp region-cursors--rect-bottom-left-overlay)
-                (setq region-cursors--rect-bottom-left-overlay
-                      (region-cursors--make-overlay (nth 2 corners))))
-              (unless (overlayp region-cursors--rect-bottom-right-overlay)
-                (setq region-cursors--rect-bottom-right-overlay
-                      (region-cursors--make-overlay (nth 3 corners))))
-              
-              (region-cursors--move-overlay region-cursors--rect-top-left-overlay (nth 0 corners))
-              (region-cursors--move-overlay region-cursors--rect-top-right-overlay (nth 1 corners))
-              (region-cursors--move-overlay region-cursors--rect-bottom-left-overlay (nth 2 corners))
-              (region-cursors--move-overlay region-cursors--rect-bottom-right-overlay (nth 3 corners)))
+	;; Rectangle mode
+	(if rect-active
+            (let ((corners (region-cursors--get-rectangle-corners)))
+	      (when corners
+		(unless (overlayp region-cursors--rect-top-left-overlay)
+                  (setq region-cursors--rect-top-left-overlay
+			(region-cursors--make-overlay (nth 0 corners))))
+		(unless (overlayp region-cursors--rect-top-right-overlay)
+                  (setq region-cursors--rect-top-right-overlay
+			(region-cursors--make-overlay (nth 1 corners))))
+		(unless (overlayp region-cursors--rect-bottom-left-overlay)
+                  (setq region-cursors--rect-bottom-left-overlay
+			(region-cursors--make-overlay (nth 2 corners))))
+		(unless (overlayp region-cursors--rect-bottom-right-overlay)
+                  (setq region-cursors--rect-bottom-right-overlay
+			(region-cursors--make-overlay (nth 3 corners))))
+		
+		(region-cursors--move-overlay region-cursors--rect-top-left-overlay (nth 0 corners))
+		(region-cursors--move-overlay region-cursors--rect-top-right-overlay (nth 1 corners))
+		(region-cursors--move-overlay region-cursors--rect-bottom-left-overlay (nth 2 corners))
+		(region-cursors--move-overlay region-cursors--rect-bottom-right-overlay (nth 3 corners)))
 
-            (region-cursors--cleanup-point-mark-overlays))
-	
-        ;; Normal region mode
-        (progn
-          (unless (overlayp region-cursors--point-overlay)
-            (setq region-cursors--point-overlay
-                  (region-cursors--make-overlay (point))))
-          (unless (overlayp region-cursors--mark-overlay)
-            (setq region-cursors--mark-overlay
-                  (region-cursors--make-overlay (mark))))
-          (region-cursors--move-overlay region-cursors--point-overlay (point))
-          (region-cursors--move-overlay region-cursors--mark-overlay (mark))
+	      (region-cursors--cleanup-point-mark-overlays))
+	  
+          ;; Normal region mode
+          (progn
+            (unless (overlayp region-cursors--point-overlay)
+	      (setq region-cursors--point-overlay
+                    (region-cursors--make-overlay (point))))
+            (unless (overlayp region-cursors--mark-overlay)
+	      (setq region-cursors--mark-overlay
+                    (region-cursors--make-overlay (mark))))
+            (region-cursors--move-overlay region-cursors--point-overlay (point))
+            (region-cursors--move-overlay region-cursors--mark-overlay (mark))
 
-          (region-cursors--cleanup-rectangle-overlays))))))
+            (region-cursors--cleanup-rectangle-overlays)))))))
 
 (defun region-cursors--post-command ()
   "Hook run after each command while `region-cursors-mode' is active."
