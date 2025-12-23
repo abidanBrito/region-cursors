@@ -192,7 +192,6 @@
        (global-hl-line-mode 1)))
     (setq region-cursors--hl-line-was-active nil)))
 
-
 (defun region-cursors--cleanup-point-mark-overlays ()
   "Remove point and mark cursor overlays."
   (when (overlayp region-cursors--point-overlay)
