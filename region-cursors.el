@@ -187,27 +187,36 @@
        (global-hl-line-mode 1)))
     (setq region-cursors--hl-line-was-active nil)))
 
+
+(defun region-cursors--cleanup-point-mark-overlays ()
+  "Remove point and mark cursor overlays."
+  (when (overlayp region-cursors--point-overlay)
+    (delete-overlay region-cursors--point-overlay)
+    (setq region-cursors--point-overlay nil))
+  (when (overlayp region-cursors--mark-overlay)
+    (delete-overlay region-cursors--mark-overlay)
+    (setq region-cursors--mark-overlay nil)))
+
+(defun region-cursors--cleanup-rectangle-overlays ()
+  "Remove rectangle corner cursor overlays."
+  (when (overlayp region-cursors--rect-top-left-overlay)
+    (delete-overlay region-cursors--rect-top-left-overlay)
+    (setq region-cursors--rect-top-left-overlay nil))
+  (when (overlayp region-cursors--rect-top-right-overlay)
+    (delete-overlay region-cursors--rect-top-right-overlay)
+    (setq region-cursors--rect-top-right-overlay nil))
+  (when (overlayp region-cursors--rect-bottom-left-overlay)
+    (delete-overlay region-cursors--rect-bottom-left-overlay)
+    (setq region-cursors--rect-bottom-left-overlay nil))
+  (when (overlayp region-cursors--rect-bottom-right-overlay)
+    (delete-overlay region-cursors--rect-bottom-right-overlay)
+    (setq region-cursors--rect-bottom-right-overlay nil)))
+
 (defun region-cursors--cleanup ()
   "Remove all region cursor overlays."
   (region-cursors--cancel-blink-timer)
-  (when (overlayp region-cursors--point-overlay)
-    (delete-overlay region-cursors--point-overlay))
-  (when (overlayp region-cursors--mark-overlay)
-    (delete-overlay region-cursors--mark-overlay))
-  (when (overlayp region-cursors--rect-top-left-overlay)
-    (delete-overlay region-cursors--rect-top-left-overlay))
-  (when (overlayp region-cursors--rect-top-right-overlay)
-    (delete-overlay region-cursors--rect-top-right-overlay))
-  (when (overlayp region-cursors--rect-bottom-left-overlay)
-    (delete-overlay region-cursors--rect-bottom-left-overlay))
-  (when (overlayp region-cursors--rect-bottom-right-overlay)
-    (delete-overlay region-cursors--rect-bottom-right-overlay))
-  (setq region-cursors--point-overlay nil
-        region-cursors--mark-overlay nil
-        region-cursors--rect-top-left-overlay nil
-        region-cursors--rect-top-right-overlay nil
-        region-cursors--rect-bottom-left-overlay nil
-        region-cursors--rect-bottom-right-overlay nil))
+  (region-cursors--cleanup-point-mark-overlays)
+  (region-cursors--cleanup-rectangle-overlays))
 
 (defun region-cursors--apply-shape (ov)
   "Apply cursor shape settings to overlay OV."
@@ -334,13 +343,7 @@ Returns nil if rectangle is not valid (single line or column)."
               (region-cursors--move-overlay region-cursors--rect-bottom-left-overlay (nth 2 corners))
               (region-cursors--move-overlay region-cursors--rect-bottom-right-overlay (nth 3 corners)))
 
-	    ;; Clean up point/mark overlays
-            (when (overlayp region-cursors--point-overlay)
-              (delete-overlay region-cursors--point-overlay)
-              (setq region-cursors--point-overlay nil))
-            (when (overlayp region-cursors--mark-overlay)
-              (delete-overlay region-cursors--mark-overlay)
-              (setq region-cursors--mark-overlay nil)))
+            (region-cursors--cleanup-point-mark-overlays))
 	
         ;; Normal region mode
         (progn
@@ -353,19 +356,7 @@ Returns nil if rectangle is not valid (single line or column)."
           (region-cursors--move-overlay region-cursors--point-overlay (point))
           (region-cursors--move-overlay region-cursors--mark-overlay (mark))
 
-	  ;; Clean up rectangle overlays
-          (when (overlayp region-cursors--rect-top-left-overlay)
-            (delete-overlay region-cursors--rect-top-left-overlay)
-            (setq region-cursors--rect-top-left-overlay nil))
-          (when (overlayp region-cursors--rect-top-right-overlay)
-            (delete-overlay region-cursors--rect-top-right-overlay)
-            (setq region-cursors--rect-top-right-overlay nil))
-          (when (overlayp region-cursors--rect-bottom-left-overlay)
-            (delete-overlay region-cursors--rect-bottom-left-overlay)
-            (setq region-cursors--rect-bottom-left-overlay nil))
-          (when (overlayp region-cursors--rect-bottom-right-overlay)
-            (delete-overlay region-cursors--rect-bottom-right-overlay)
-            (setq region-cursors--rect-bottom-right-overlay nil)))))))
+          (region-cursors--cleanup-rectangle-overlays))))))
 
 (defun region-cursors--post-command ()
   "Hook run after each command while `region-cursors-mode' is active."
