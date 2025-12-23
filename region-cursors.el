@@ -379,10 +379,10 @@ Returns nil if rectangle is not valid (single line or column)."
   :lighter " ●○"
   (if region-cursors-mode
       (progn
-        (add-hook 'post-command-hook #'region-cursors--post-command nil t)
+        (add-hook 'post-command-hook #'region-cursors--post-command)
         (add-hook 'window-selection-change-functions
                   #'region-cursors--window-change))
-    (remove-hook 'post-command-hook #'region-cursors--post-command t)
+    (remove-hook 'post-command-hook #'region-cursors--post-command)
     (remove-hook 'window-selection-change-functions
                  #'region-cursors--window-change)
     (region-cursors--cleanup)
