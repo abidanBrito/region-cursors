@@ -54,6 +54,11 @@
   :type 'number
   :group 'region-cursors)
 
+(defcustom region-cursors-disable-hl-line-mode nil
+  "Whether to disable `hl-line-mode' while region is active."
+  :type 'boolean
+  :group 'region-cursors)
+
 (defvar-local region-cursors--point-overlay nil
   "Overlay for the point position.")
 
@@ -83,6 +88,9 @@
 
 (defvar-local region-cursors--blink-state t
   "Current visibility state for blinking cursors (t = visible).")
+
+(defvar-local region-cursors--hl-line-was-active nil
+  "Track if `hl-line-mode' was active before region activation.")
 
 (defun region-cursors--cursor-anchor (pos)
   "Return a safe overlay anchor position for POS, handling EOF."
@@ -154,6 +162,30 @@
           (run-with-timer region-cursors-blink-interval
                           region-cursors-blink-interval
                           #'region-cursors--toggle-blink))))
+
+(defun region-cursors--disable-hl-line ()
+  "Disable `hl-line-mode' locally if requested."
+  (when region-cursors-disable-hl-line-mode
+    (cond
+     ;; Local mode
+     ((and (boundp 'hl-line-mode) hl-line-mode)
+      (setq region-cursors--hl-line-was-active 'local)
+      (hl-line-mode -1))
+     ;; Global mode
+     ((and (boundp 'global-hl-line-mode) global-hl-line-mode)
+      (setq region-cursors--hl-line-was-active 'global)
+      (global-hl-line-mode -1)))))
+
+(defun region-cursors--restore-hl-line ()
+  "Restore `hl-line-mode' if it was active before."
+  (when (and region-cursors-disable-hl-line-mode
+	     region-cursors--hl-line-was-active)
+    (pcase region-cursors--hl-line-was-active
+      ('local
+       (hl-line-mode 1))
+      ('global
+       (global-hl-line-mode 1)))
+    (setq region-cursors--hl-line-was-active nil)))
 
 (defun region-cursors--cleanup ()
   "Remove all region cursor overlays."
@@ -266,12 +298,14 @@ Returns nil if rectangle is not valid (single line or column)."
      ((and region-active (not region-cursors--region-was-active))
       (setq region-cursors--region-was-active t)
       (region-cursors--hide-cursor)
+      (region-cursors--disable-hl-line)
       (region-cursors--start-blink-timer))
 
      ;; Deactivation
      ((and (not region-active) region-cursors--region-was-active)
       (setq region-cursors--region-was-active nil)
       (region-cursors--cleanup)
+      (region-cursors--restore-hl-line)
       (region-cursors--restore-cursor)))
 
     ;; Rendering
@@ -341,6 +375,7 @@ Returns nil if rectangle is not valid (single line or column)."
   "Handle selected window changing."
   (region-cursors--cleanup)
   (region-cursors--restore-cursor)
+  (region-cursors--restore-hl-line)
   (setq region-cursors--region-was-active nil))
 
 ;;;###autoload
