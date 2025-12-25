@@ -44,14 +44,24 @@
   :type 'boolean
   :group 'region-cursors)
 
-(defcustom region-cursors-blink nil
-  "Whether cursor overlays should blink."
-  :type 'boolean
+(defcustom region-cursors-animation 'none
+  "Animation style for cursor overlays.
+- `none': no animation.
+- `blink': toggle visibility on and off.
+- `pulse:': fade in and out smoothly."
+  :type '(choice (const :tag "None" none)
+		 (const :tag "Blink" blink)
+		 (const :tag "Pulse" pulse))
   :group 'region-cursors)
 
-(defcustom region-cursors-blink-interval 0.5
-  "Blink interval in seconds when `region-cursors-blink' is non-nil."
+(defcustom region-cursors-animation-interval 0.5
+  "Animation interval in seconds when `region-cursors-animation' is not `none'."
   :type 'number
+  :group 'region-cursors)
+
+(defcustom region-cursors-pulse-steps 15
+  "Number of steps in pulse animation cycle."
+  :type 'integer
   :group 'region-cursors)
 
 (defcustom region-cursors-disable-hl-line-mode nil
@@ -88,11 +98,17 @@
 (defvar-local region-cursors--saved-cursor-type nil
   "Storage for the original cursor type.")
 
-(defvar-local region-cursors--blink-timer nil
-  "Timer for blinking cursor overlays.")
+(defvar-local region-cursors--animation-timer nil
+  "Timer for cursor overlay animations.")
 
 (defvar-local region-cursors--blink-state t
   "Current visibility state for blinking cursors (t = visible).")
+
+(defvar-local region-cursors--pulse-step 0
+  "Current step in pulse animation (0 to pulse-steps).")
+
+(defvar-local region-cursors--pulse-direction 1
+  "Direction of pulse animation (1 = brightening, -1 = dimming).")
 
 (defvar-local region-cursors--hl-line-was-active nil
   "Track if `hl-line-mode' was active before region activation.")
@@ -129,44 +145,49 @@
     (setq region-cursors--saved-cursor-type nil)
     (force-window-update (selected-window))))
 
-(defun region-cursors--cancel-blink-timer ()
-  "Cancel the blink timer if it exists."
-  (when (timerp region-cursors--blink-timer)
-    (cancel-timer region-cursors--blink-timer)
-    (setq region-cursors--blink-timer nil)))
+(defun region-cursors--cancel-animation-timer ()
+  "Cancel the animation timer if it exists."
+  (when (timerp region-cursors--animation-timer)
+    (cancel-timer region-cursors--animation-timer)
+    (setq region-cursors--animation-timer nil)))
+
+(defun region-cursors--start-animation-timer ()
+  "Start the animation timer if `region-cursors-animation' is not `none'."
+  (when (not (eq region-cursors-animation 'none))
+    (region-cursors--cancel-animation-timer)
+    (setq region-cursors--blink-state t)
+    (setq region-cursors--pulse-step 0)
+    (setq region-cursors--pulse-direction 1)
+    (let ((interval (if (eq region-cursors-animation 'pulse)
+			(/ region-cursors-animation-interval
+			   region-cursors-pulse-steps)
+		      region-cursors-animation-interval)))
+      (setq region-cursors--animation-timer
+	    (run-with-timer interval interval
+			    #'region-cursors--toggle-blink)))))
 
 (defun region-cursors--toggle-blink ()
   "Toggle visibility of cursor overlays for blinking effect."
   (setq region-cursors--blink-state (not region-cursors--blink-state))
   (let ((color (if region-cursors--blink-state
-                   region-cursors-cursor-color
-                 "transparent")))
+		   region-cursors-cursor-color
+		 "transparent")))
     (dolist (ov (list region-cursors--point-overlay
-                      region-cursors--mark-overlay
-                      region-cursors--rect-top-left-overlay
-                      region-cursors--rect-top-right-overlay
-                      region-cursors--rect-bottom-left-overlay
-                      region-cursors--rect-bottom-right-overlay))
+		      region-cursors--mark-overlay
+		      region-cursors--rect-top-left-overlay
+		      region-cursors--rect-top-right-overlay
+		      region-cursors--rect-bottom-left-overlay
+		      region-cursors--rect-bottom-right-overlay))
       (when (overlayp ov)
-        (pcase region-cursors-cursor-shape
-          ('box
-           (overlay-put ov 'face `(:background ,color)))
-          ('bar
-           (overlay-put ov 'before-string
-                        (propertize " "
-                                    'display `(space :width (,region-cursors-bar-width))
-                                    'face `(:background ,color)
-                                    'cursor t))))))))
-
-(defun region-cursors--start-blink-timer ()
-  "Start the blink timer if blinking is enabled."
-  (when region-cursors-blink
-    (region-cursors--cancel-blink-timer)
-    (setq region-cursors--blink-state t)
-    (setq region-cursors--blink-timer
-          (run-with-timer region-cursors-blink-interval
-                          region-cursors-blink-interval
-                          #'region-cursors--toggle-blink))))
+	(pcase region-cursors-cursor-shape
+	  ('box
+	   (overlay-put ov 'face `(:background ,color)))
+	  ('bar
+	   (overlay-put ov 'before-string
+			(propertize " "
+				    'display `(space :width (,region-cursors-bar-width))
+				    'face `(:background ,color)
+				    'cursor t))))))))
 
 (defun region-cursors--disable-hl-line ()
   "Disable `hl-line-mode' locally if requested."
@@ -218,7 +239,7 @@
 
 (defun region-cursors--cleanup ()
   "Remove all region cursor overlays."
-  (region-cursors--cancel-blink-timer)
+  (region-cursors--cancel-animation-timer)
   (region-cursors--cleanup-point-mark-overlays)
   (region-cursors--cleanup-rectangle-overlays))
 
@@ -231,15 +252,15 @@
     ('bar
      (overlay-put ov 'face nil)
      (overlay-put ov 'before-string
-                  (propertize " "
-                              'display `(space :width (,region-cursors-bar-width))
-                              'face `(:background ,region-cursors-cursor-color)
-                              'cursor t)))))
+		  (propertize " "
+			      'display `(space :width (,region-cursors-bar-width))
+			      'face `(:background ,region-cursors-cursor-color)
+			      'cursor t)))))
 
 (defun region-cursors--make-overlay (pos)
   "Create a cursor overlay at POS."
   (let* ((range (region-cursors--overlay-range pos))
-         (ov (make-overlay (car range) (cdr range) nil t nil)))
+	 (ov (make-overlay (car range) (cdr range) nil t nil)))
     (overlay-put ov 'priority 1000)
     (region-cursors--apply-shape ov)
     ov))
@@ -261,59 +282,59 @@
 Returns nil if rectangle is not valid (single line or column)."
   (when (region-cursors--rectangle-active-p)
     (let* ((start (region-beginning))
-           (end (region-end))
-           (start-col (save-excursion (goto-char start) (current-column)))
-           (end-col (save-excursion (goto-char end) (current-column)))
-           (start-line (line-number-at-pos start))
-           (end-line (line-number-at-pos end))
-           (left-col (min start-col end-col))
-           (right-col (max start-col end-col))
-           (top-line (min start-line end-line))
-           (bottom-line (max start-line end-line)))
+	   (end (region-end))
+	   (start-col (save-excursion (goto-char start) (current-column)))
+	   (end-col (save-excursion (goto-char end) (current-column)))
+	   (start-line (line-number-at-pos start))
+	   (end-line (line-number-at-pos end))
+	   (left-col (min start-col end-col))
+	   (right-col (max start-col end-col))
+	   (top-line (min start-line end-line))
+	   (bottom-line (max start-line end-line)))
       ;; NOTE(abi): only show corners if we have an actual rectangle, not a line or a column.
       (when (and (> (abs (- right-col left-col)) 0)
-                 (> (abs (- bottom-line top-line)) 0))
-        (list
-         ;; Top-left
-         (save-excursion
-           (goto-char (point-min))
-           (forward-line (1- top-line))
-           (move-to-column left-col)
-           (point))
+		 (> (abs (- bottom-line top-line)) 0))
+	(list
+	 ;; Top-left
+	 (save-excursion
+	   (goto-char (point-min))
+	   (forward-line (1- top-line))
+	   (move-to-column left-col)
+	   (point))
 
-         ;; Top-right
-         (save-excursion
-           (goto-char (point-min))
-           (forward-line (1- top-line))
-           (move-to-column right-col)
-           (point))
+	 ;; Top-right
+	 (save-excursion
+	   (goto-char (point-min))
+	   (forward-line (1- top-line))
+	   (move-to-column right-col)
+	   (point))
 
-         ;; Bottom-left
-         (save-excursion
-           (goto-char (point-min))
-           (forward-line (1- bottom-line))
-           (move-to-column left-col)
-           (point))
+	 ;; Bottom-left
+	 (save-excursion
+	   (goto-char (point-min))
+	   (forward-line (1- bottom-line))
+	   (move-to-column left-col)
+	   (point))
 
-         ;; Bottom-right
-         (save-excursion
-           (goto-char (point-min))
-           (forward-line (1- bottom-line))
-           (move-to-column right-col)
-           (point)))))))
+	 ;; Bottom-right
+	 (save-excursion
+	   (goto-char (point-min))
+	   (forward-line (1- bottom-line))
+	   (move-to-column right-col)
+	   (point)))))))
 
 (defun region-cursors--update ()
   "Update region cursor overlays."
   (unless (memq major-mode region-cursors-disabled-modes)
     (let ((region-active (use-region-p))
-          (rect-active (region-cursors--rectangle-active-p)))
+	  (rect-active (region-cursors--rectangle-active-p)))
       (cond
        ;; Activation
        ((and region-active (not region-cursors--region-was-active))
 	(setq region-cursors--region-was-active t)
 	(region-cursors--hide-cursor)
 	(region-cursors--disable-hl-line)
-	(region-cursors--start-blink-timer))
+	(region-cursors--start-animation-timer))
 
        ;; Deactivation
        ((and (not region-active) region-cursors--region-was-active)
@@ -328,19 +349,19 @@ Returns nil if rectangle is not valid (single line or column)."
 
 	;; Rectangle mode
 	(if rect-active
-            (let ((corners (region-cursors--get-rectangle-corners)))
+	    (let ((corners (region-cursors--get-rectangle-corners)))
 	      (when corners
 		(unless (overlayp region-cursors--rect-top-left-overlay)
-                  (setq region-cursors--rect-top-left-overlay
+		  (setq region-cursors--rect-top-left-overlay
 			(region-cursors--make-overlay (nth 0 corners))))
 		(unless (overlayp region-cursors--rect-top-right-overlay)
-                  (setq region-cursors--rect-top-right-overlay
+		  (setq region-cursors--rect-top-right-overlay
 			(region-cursors--make-overlay (nth 1 corners))))
 		(unless (overlayp region-cursors--rect-bottom-left-overlay)
-                  (setq region-cursors--rect-bottom-left-overlay
+		  (setq region-cursors--rect-bottom-left-overlay
 			(region-cursors--make-overlay (nth 2 corners))))
 		(unless (overlayp region-cursors--rect-bottom-right-overlay)
-                  (setq region-cursors--rect-bottom-right-overlay
+		  (setq region-cursors--rect-bottom-right-overlay
 			(region-cursors--make-overlay (nth 3 corners))))
 		
 		(region-cursors--move-overlay region-cursors--rect-top-left-overlay (nth 0 corners))
@@ -350,18 +371,18 @@ Returns nil if rectangle is not valid (single line or column)."
 
 	      (region-cursors--cleanup-point-mark-overlays))
 	  
-          ;; Normal region mode
-          (progn
-            (unless (overlayp region-cursors--point-overlay)
+	  ;; Normal region mode
+	  (progn
+	    (unless (overlayp region-cursors--point-overlay)
 	      (setq region-cursors--point-overlay
-                    (region-cursors--make-overlay (point))))
-            (unless (overlayp region-cursors--mark-overlay)
+		    (region-cursors--make-overlay (point))))
+	    (unless (overlayp region-cursors--mark-overlay)
 	      (setq region-cursors--mark-overlay
-                    (region-cursors--make-overlay (mark))))
-            (region-cursors--move-overlay region-cursors--point-overlay (point))
-            (region-cursors--move-overlay region-cursors--mark-overlay (mark))
+		    (region-cursors--make-overlay (mark))))
+	    (region-cursors--move-overlay region-cursors--point-overlay (point))
+	    (region-cursors--move-overlay region-cursors--mark-overlay (mark))
 
-            (region-cursors--cleanup-rectangle-overlays)))))))
+	    (region-cursors--cleanup-rectangle-overlays)))))))
 
 (defun region-cursors--post-command ()
   "Hook run after each command while `region-cursors-mode' is active."
@@ -384,12 +405,12 @@ Returns nil if rectangle is not valid (single line or column)."
   :lighter " ●○"
   (if region-cursors-mode
       (progn
-        (add-hook 'post-command-hook #'region-cursors--post-command)
-        (add-hook 'window-selection-change-functions
-                  #'region-cursors--window-change))
+	(add-hook 'post-command-hook #'region-cursors--post-command)
+	(add-hook 'window-selection-change-functions
+		  #'region-cursors--window-change))
     (remove-hook 'post-command-hook #'region-cursors--post-command)
     (remove-hook 'window-selection-change-functions
-                 #'region-cursors--window-change)
+		 #'region-cursors--window-change)
     (region-cursors--cleanup)
     (region-cursors--restore-cursor)
     (setq region-cursors--region-was-active nil)))
