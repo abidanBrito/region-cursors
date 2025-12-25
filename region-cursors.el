@@ -189,6 +189,36 @@
 				    'face `(:background ,color)
 				    'cursor t))))))))
 
+(defun region-cursors--get-background-at-point (pos)
+  "Get background color at POS, or frame background if none."
+  (or (face-background (get-char-property pos 'face) nil t)
+      (face-background 'default)
+      (frame-parameter nil 'background-color)
+      "#000000"))
+
+(defun region-cursors--color-rgb-to-hex (red green blue &optional digits-per-component)
+  "Convert RED GREEN BLUE components to hex string.
+Each component should be a float between 0.0 and 1.0.
+DIGITS-PER-COMPONENT controls precision (defaulta 2, giving #RRGGBB format)."
+  (let ((digits (or digits-per-component 2)))
+    (format (pcase digits
+	      (2 "#%02x%02x%02x")
+	      (4 "#%04x%04x%04x")
+	      (_ "#%02x%02x%02x"))
+	    (round (* red (1- (expt 16 digits))))
+	    (round (* green (1- (expt 16 digits))))
+	    (round (* blue (1- (expt 16 digits)))))))
+
+(defun region-cursors--blend-colors (color1 color2 alpha)
+  "Blend COLOR1 and COLOR2 with ALPHA (0.0 to 1.0).
+ALPHA of 0.0 returns COLOR2, 1.0 returns COLOR1."
+  (let* ((c1 (color-name-to-rgb color1))
+	 (c2 (color-name-to-rgb color2))
+	 (r (+ (* alpha (nth 0 c1)) (* (- 1.0 alpha) (nth 0 c2))))
+	 (g (+ (* alpha (nth 1 c1)) (* (- 1.0 alpha) (nth 1 c2))))
+	 (b (+ (* alpha (nth 2 c1)) (* (- 1.0 alpha) (nth 2 c2)))))
+    (region-cursors--color-rgb-to-hex r g b 2)))
+
 (defun region-cursors--disable-hl-line ()
   "Disable `hl-line-mode' locally if requested."
   (when region-cursors-disable-hl-line-mode
