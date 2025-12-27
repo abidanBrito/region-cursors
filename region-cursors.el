@@ -59,7 +59,13 @@
   :type 'number
   :group 'region-cursors)
 
-(defcustom region-cursors-pulse-steps 15
+(defcustom region-cursors-animation-delay 1.5
+  "Delay in seconds before starting animation after region becomes static.
+Set to 0 to start animations immediately (no delay)."
+  :type 'number
+  :group 'region-cursors)
+
+(defcustom region-cursors-pulse-steps 10
   "Number of steps in pulse animation cycle."
   :type 'integer
   :group 'region-cursors)
@@ -95,11 +101,17 @@
 (defvar-local region-cursors--region-was-active nil
   "Track if the region was active in the previous update.")
 
+(defvar-local region-cursors--last-region-bounds nil
+  "Last known region bounds as (point . mark) to detect changes.")
+
 (defvar-local region-cursors--saved-cursor-type nil
   "Storage for the original cursor type.")
 
 (defvar-local region-cursors--animation-timer nil
   "Timer for cursor overlay animations.")
+
+(defvar-local region-cursors--animation-delay-timer nil
+  "Timer that waits before starting animation on static region.")
 
 (defvar-local region-cursors--blink-state t
   "Current visibility state for blinking cursors (t = visible).")
@@ -145,6 +157,28 @@
     (setq region-cursors--saved-cursor-type nil)
     (force-window-update (selected-window))))
 
+(defun region-cursors--cancel-animation-delay-timer ()
+  "Cancel the animation delay timer if it exists."
+  (when (timerp region-cursors--animation-delay-timer)
+    (cancel-timer region-cursors--animation-delay-timer)
+    (setq region-cursors--animation-delay-timer nil)))
+
+(defun region-cursors--start-animation-delayed ()
+  "Start animation after delay if region remains static."
+  (region-cursors--cancel-animation-delay-timer)
+  (if (or (eq region-cursors-animation 'none)
+          (<= region-cursors-animation-delay 0))
+      (region-cursors--start-animation-timer)
+    (setq region-cursors--animation-delay-timer
+          (run-with-timer region-cursors-animation-delay nil
+                          #'region-cursors--start-animation-timer))))
+
+(defun region-cursors--region-changed-p ()
+  "Return non-nil if region bounds have changed since the last check."
+  (let ((current-bounds (cons (point) (mark))))
+    (prog1 (not (equal current-bounds region-cursors--last-region-bounds))
+      (setq region-cursors--last-region-bounds current-bounds))))
+
 (defun region-cursors--cancel-animation-timer ()
   "Cancel the animation timer if it exists."
   (when (timerp region-cursors--animation-timer)
@@ -165,6 +199,14 @@
       (setq region-cursors--animation-timer
 	    (run-with-timer interval interval
 			    #'region-cursors--animate-tick)))))
+
+(defun region-cursors--stop-animation ()
+  "Stop animation and reset overlays to full cursor color."
+  (region-cursors--cancel-animation-timer)
+  (region-cursors--cancel-animation-delay-timer)
+  
+  ;; NOTE(abi): reset overlays to full cursor color, no blend.
+  (region-cursors--apply-color-to-overlays region-cursors-cursor-color))
 
 (defun region-cursors--animate-tick ()
   "Update cursor overlays for the current animation frame."
@@ -397,11 +439,13 @@ Returns nil if rectangle is not valid (single line or column)."
 	(setq region-cursors--region-was-active t)
 	(region-cursors--hide-cursor)
 	(region-cursors--disable-hl-line)
-	(region-cursors--start-animation-timer))
+	(setq region-cursors--last-region-bounds (cons (point) (mark)))
+	(region-cursors--start-animation-delayed))
 
        ;; Deactivation
        ((and (not region-active) region-cursors--region-was-active)
 	(setq region-cursors--region-was-active nil)
+	(setq region-cursors--last-region-bounds nil)
 	(region-cursors--cleanup)
 	(region-cursors--restore-hl-line)
 	(region-cursors--restore-cursor)))
@@ -409,6 +453,10 @@ Returns nil if rectangle is not valid (single line or column)."
       ;; Rendering
       (when region-active
 	(region-cursors--hide-cursor)
+
+	(when (region-cursors--region-changed-p)
+	  (region-cursors--stop-animation)
+	  (region-cursors--start-animation-delayed))
 
 	;; Rectangle mode
 	(if rect-active
