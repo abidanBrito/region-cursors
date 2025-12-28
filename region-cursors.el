@@ -178,8 +178,11 @@ Set to 0 to start animations immediately (no delay)."
 (defun region-cursors--region-changed-p ()
   "Return non-nil if region bounds have changed since the last check."
   (let ((current-bounds (cons (point) (mark))))
-    (prog1 (not (equal current-bounds region-cursors--last-region-bounds))
-      (setq region-cursors--last-region-bounds current-bounds))))
+    (if (equal current-bounds region-cursors--last-region-bounds)
+        nil
+      (progn
+        (setq region-cursors--last-region-bounds current-bounds)
+        t))))
 
 (defun region-cursors--cancel-animation-timer ()
   "Cancel the animation timer if it exists."
@@ -287,11 +290,17 @@ Returns region color if position is at region start, background color if at end.
         (or (face-background 'region nil t) "#3a3f5a")
       (region-cursors--get-default-background))))
 
-(defun region-cursors--apply-shape (ov)
-  "Apply cursor shape settings to overlay OV."
+(defun region-cursors--apply-shape (ov &optional color)
+  "Apply cursor shape settings to overlay OV with optional COLOR."
   (let* ((pos (overlay-start ov))
          (char-at-pos (char-after pos))
-         (is-tab (and char-at-pos (eq char-at-pos ?\t))))
+         (is-tab (and char-at-pos (eq char-at-pos ?\t)))
+	 (cursor-color (or color
+			   (overlay-get ov 'region-cursors-color)
+			   region-cursors-cursor-color)))
+
+    (overlay-put ov 'region-cursors-color cursor-color)
+    
     (pcase region-cursors-cursor-shape
       ('box
        (if is-tab
@@ -303,12 +312,12 @@ Returns region color if position is at region start, background color if at end.
              (overlay-put ov 'display
                           (concat
                            (propertize " "
-                                       'face `(:background ,region-cursors-cursor-color))
+                                       'face `(:background ,cursor-color))
                            (propertize (make-string spacer-width ?\s)
                                        'face `(:background ,spacer-color))))
              (overlay-put ov 'before-string nil))
          (progn
-           (overlay-put ov 'face `(:background ,region-cursors-cursor-color))
+           (overlay-put ov 'face `(:background ,cursor-color))
            (overlay-put ov 'display nil)
            (overlay-put ov 'before-string nil))))
       
@@ -318,7 +327,7 @@ Returns region color if position is at region start, background color if at end.
        (overlay-put ov 'before-string
                     (propertize " "
                                 'display `(space :width (,region-cursors-bar-width))
-                                'face `(:background ,region-cursors-cursor-color)))))))
+                                'face `(:background ,cursor-color)))))))
 
 (defun region-cursors--apply-color-to-overlays (color)
   "Apply COLOR to all cursor overlays."
@@ -329,30 +338,7 @@ Returns region color if position is at region start, background color if at end.
                     region-cursors--rect-bottom-left-overlay
                     region-cursors--rect-bottom-right-overlay))
     (when (and (overlayp ov) (overlay-buffer ov))
-      (let* ((pos (overlay-start ov))
-             (char-at-pos (char-after pos))
-             (is-tab (and char-at-pos (eq char-at-pos ?\t))))
-        (pcase region-cursors-cursor-shape
-          ('box
-           (if is-tab
-               (let* ((col (save-excursion (goto-char pos) (current-column)))
-                      (next-col (save-excursion (goto-char (1+ pos)) (current-column)))
-                      (tab-width-chars (- next-col col))
-                      (spacer-width (max 0 (1- tab-width-chars)))
-                      (spacer-color (region-cursors--get-overlay-spacer-color pos)))
-                 (overlay-put ov 'display
-                              (concat
-                               (propertize " "
-                                           'face `(:background ,color))
-                               (propertize (make-string spacer-width ?\s)
-                                           'face `(:background ,spacer-color)))))
-             (overlay-put ov 'face `(:background ,color))))
-          
-          ('bar
-           (overlay-put ov 'before-string
-                        (propertize " "
-                                    'display `(space :width (,region-cursors-bar-width))
-                                    'face `(:background ,color)))))))))
+      (region-cursors--apply-shape ov color))))
 
 (defun region-cursors--disable-hl-line ()
   "Disable `hl-line-mode' locally if requested."
@@ -477,7 +463,7 @@ Returns nil if rectangle is not valid (single line or column)."
 	   (move-to-column right-col)
 	   (point)))))))
 
-(defun region-cursors--update ()
+(defun region-cursors--update (&optional _windows)
   "Update region cursor overlays."
   (unless (memq major-mode region-cursors-disabled-modes)
     (let ((region-active (use-region-p))
@@ -568,12 +554,14 @@ Optional _FRAME argument is ignored (for hook compatibility)."
   a region is active."
   :global t
   :lighter " ●○"
+  ;; NOTE(abi): updates happen before redisplay to ensure overlays stay
+  ;;            in sync during mouse drag operations and whatnot.
   (if region-cursors-mode
       (progn
-	(add-hook 'post-command-hook #'region-cursors--update)
+	(add-hook 'pre-redisplay-functions #'region-cursors--update)
 	(add-hook 'window-selection-change-functions #'region-cursors--reset-and-cleanup)
 	(add-hook 'before-revert-hook #'region-cursors--reset-and-cleanup))
-    (remove-hook 'post-command-hook #'region-cursors--update)
+    (remove-hook 'pre-redisplay-functions #'region-cursors--update)
     (remove-hook 'window-selection-change-functions #'region-cursors--reset-and-cleanup)
     (remove-hook 'before-revert-hook #'region-cursors--reset-and-cleanup)
     (region-cursors--cleanup)
