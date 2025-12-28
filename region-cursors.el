@@ -136,11 +136,15 @@ Set to 0 to start animations immediately (no delay)."
   "Return (START . END) range for a cursor overlay at POS."
   (pcase region-cursors-cursor-shape
     ('box
+     ;; NOTE(abi): tabs get a zero-width overlay (will be rendered with "before-string"),
+     ;;            otherwise we cover the character.
      (let* ((start (region-cursors--cursor-anchor pos))
-            (end (min (1+ start) (point-max))))
-       (cons start end)))
+            (char-at-pos (char-after start)))
+       (if (and char-at-pos (eq char-at-pos ?\t))
+           (cons start start)
+         (let ((end (min (1+ start) (point-max))))
+           (cons start end)))))
     ('bar
-     ;; Zero-width overlay for bar cursor
      (cons pos pos))))
 
 (defun region-cursors--hide-cursor ()
@@ -285,15 +289,24 @@ ALPHA of 0.0 returns COLOR2, 1.0 returns COLOR1."
                     region-cursors--rect-bottom-left-overlay
                     region-cursors--rect-bottom-right-overlay))
     (when (and (overlayp ov) (overlay-buffer ov))
-      (pcase region-cursors-cursor-shape
-	('box
-	 (overlay-put ov 'face `(:background ,color)))
-	('bar
-	 (overlay-put ov 'before-string
-		      (propertize " "
-                                  'display `(space :width (,region-cursors-bar-width))
-                                  'face `(:background ,color)
-				  'cursor t)))))))
+      (let* ((pos (overlay-start ov))
+             (char-at-pos (char-after pos))
+             (is-tab (and char-at-pos (eq char-at-pos ?\t))))
+        (pcase region-cursors-cursor-shape
+          ('box
+           (if is-tab
+               (overlay-put ov 'before-string
+                            (propertize "X"
+                                        'face `(:background ,color :foreground ,color)
+                                        'cursor t))
+             (overlay-put ov 'face `(:background ,color))))
+          
+          ('bar
+           (overlay-put ov 'before-string
+                        (propertize " "
+                                    'display `(space :width (,region-cursors-bar-width))
+                                    'face `(:background ,color)
+                                    'cursor t))))))))
 
 (defun region-cursors--disable-hl-line ()
   "Disable `hl-line-mode' locally if requested."
@@ -351,17 +364,29 @@ ALPHA of 0.0 returns COLOR2, 1.0 returns COLOR1."
 
 (defun region-cursors--apply-shape (ov)
   "Apply cursor shape settings to overlay OV."
-  (pcase region-cursors-cursor-shape
-    ('box
-     (overlay-put ov 'face `(:background ,region-cursors-cursor-color))
-     (overlay-put ov 'before-string nil))
-    ('bar
-     (overlay-put ov 'face nil)
-     (overlay-put ov 'before-string
-		  (propertize " "
-			      'display `(space :width (,region-cursors-bar-width))
-			      'face `(:background ,region-cursors-cursor-color)
-			      'cursor t)))))
+  (let* ((pos (overlay-start ov))
+         (char-at-pos (char-after pos))
+         (is-tab (and char-at-pos (eq char-at-pos ?\t))))
+    (pcase region-cursors-cursor-shape
+      ('box
+       (if is-tab
+           (progn
+             (overlay-put ov 'face nil)
+             (overlay-put ov 'before-string
+                          (propertize "X"
+                                      'face `(:background ,region-cursors-cursor-color :foreground ,region-cursors-cursor-color)
+                                      'cursor t)))
+         (progn
+           (overlay-put ov 'face `(:background ,region-cursors-cursor-color))
+           (overlay-put ov 'before-string nil))))
+      
+      ('bar
+       (overlay-put ov 'face nil)
+       (overlay-put ov 'before-string
+                    (propertize " "
+                                'display `(space :width (,region-cursors-bar-width))
+                                'face `(:background ,region-cursors-cursor-color)
+                                'cursor t))))))
 
 (defun region-cursors--make-overlay (pos)
   "Create a cursor overlay at POS."
@@ -374,7 +399,10 @@ ALPHA of 0.0 returns COLOR2, 1.0 returns COLOR1."
 (defun region-cursors--move-overlay (ov pos)
   "Move overlay OV to POS, handling EOF and shape."
   (let ((range (region-cursors--overlay-range pos)))
-    (move-overlay ov (car range) (cdr range))))
+    (move-overlay ov (car range) (cdr range))
+    
+    ;; NOTE(abi): we reapply shape after moving, just in case we land on a tab.
+    (region-cursors--apply-shape ov)))
 
 (defun region-cursors--rectangle-active-p ()
   "Return non-nil if `rectangle-mark-mode' is active."
