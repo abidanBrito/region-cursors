@@ -495,16 +495,16 @@ Returns nil if rectangle is not valid (single line or column)."
 
 	    (region-cursors--cleanup-rectangle-overlays)))))))
 
-(defun region-cursors--post-command ()
-  "Hook run after each command while `region-cursors-mode' is active."
-  (region-cursors--update))
-
-(defun region-cursors--window-change (_frame)
-  "Handle selected window changing."
+(defun region-cursors--reset-and-cleanup (&optional _frame)
+  "Perform complete state reset and cleanup of overlays.
+Used when switching windows or reverting buffers.
+Optional _FRAME argument is ignored (for hook compatibility)."
   (region-cursors--cleanup)
   (region-cursors--restore-cursor)
   (region-cursors--restore-hl-line)
-  (setq region-cursors--region-was-active nil))
+  (setq region-cursors--region-was-active nil)
+  (setq region-cursors--last-region-bounds nil)
+  (deactivate-mark))
 
 ;;;###autoload
 (define-minor-mode region-cursors-mode
@@ -516,12 +516,14 @@ Returns nil if rectangle is not valid (single line or column)."
   :lighter " ●○"
   (if region-cursors-mode
       (progn
-	(add-hook 'post-command-hook #'region-cursors--post-command)
+	(add-hook 'post-command-hook #'region-cursors--update)
 	(add-hook 'window-selection-change-functions
-		  #'region-cursors--window-change))
-    (remove-hook 'post-command-hook #'region-cursors--post-command)
+		  #'region-cursors--reset-and-cleanup)
+	(add-hook 'before-revert-hook #'region-cursors--reset-and-cleanup))
+    (remove-hook 'post-command-hook #'region-cursors--update)
     (remove-hook 'window-selection-change-functions
-		 #'region-cursors--window-change)
+		 #'region-cursors--reset-and-cleanup)
+    (remove-hook 'before-revert-hook #'region-cursors--reset-and-cleanup)
     (region-cursors--cleanup)
     (region-cursors--restore-cursor)
     (setq region-cursors--region-was-active nil)))
