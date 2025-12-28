@@ -150,16 +150,17 @@ Set to 0 to start animations immediately (no delay)."
 (defun region-cursors--hide-cursor ()
   "Hide the real cursor, saving its previous value."
   (unless region-cursors--saved-cursor-type
-    (setq region-cursors--saved-cursor-type cursor-type)
-    (setq cursor-type nil)
-    (force-window-update (selected-window))))
+    (internal-show-cursor (selected-window) nil)
+    (force-window-update (selected-window))
+    (setq region-cursors--saved-cursor-type cursor-type)))
 
 (defun region-cursors--restore-cursor ()
   "Restore the real cursor if it was hidden."
   (when region-cursors--saved-cursor-type
+    (internal-show-cursor (selected-window) t)
+    (force-window-update (selected-window))
     (setq cursor-type region-cursors--saved-cursor-type)
-    (setq region-cursors--saved-cursor-type nil)
-    (force-window-update (selected-window))))
+    (setq region-cursors--saved-cursor-type nil)))
 
 (defun region-cursors--cancel-animation-delay-timer ()
   "Cancel the animation delay timer if it exists."
@@ -297,16 +298,14 @@ ALPHA of 0.0 returns COLOR2, 1.0 returns COLOR1."
            (if is-tab
                (overlay-put ov 'before-string
                             (propertize "X"
-                                        'face `(:background ,color :foreground ,color)
-                                        'cursor t))
+                                        'face `(:background ,color :foreground ,color)))
              (overlay-put ov 'face `(:background ,color))))
           
           ('bar
            (overlay-put ov 'before-string
                         (propertize " "
                                     'display `(space :width (,region-cursors-bar-width))
-                                    'face `(:background ,color)
-                                    'cursor t))))))))
+                                    'face `(:background ,color)))))))))
 
 (defun region-cursors--disable-hl-line ()
   "Disable `hl-line-mode' locally if requested."
@@ -374,8 +373,7 @@ ALPHA of 0.0 returns COLOR2, 1.0 returns COLOR1."
              (overlay-put ov 'face nil)
              (overlay-put ov 'before-string
                           (propertize "X"
-                                      'face `(:background ,region-cursors-cursor-color :foreground ,region-cursors-cursor-color)
-                                      'cursor t)))
+                                      'face `(:background ,region-cursors-cursor-color :foreground ,region-cursors-cursor-color))))
          (progn
            (overlay-put ov 'face `(:background ,region-cursors-cursor-color))
            (overlay-put ov 'before-string nil))))
@@ -385,14 +383,14 @@ ALPHA of 0.0 returns COLOR2, 1.0 returns COLOR1."
        (overlay-put ov 'before-string
                     (propertize " "
                                 'display `(space :width (,region-cursors-bar-width))
-                                'face `(:background ,region-cursors-cursor-color)
-                                'cursor t))))))
+                                'face `(:background ,region-cursors-cursor-color)))))))
 
 (defun region-cursors--make-overlay (pos)
   "Create a cursor overlay at POS."
   (let* ((range (region-cursors--overlay-range pos))
 	 (ov (make-overlay (car range) (cdr range) nil t nil)))
     (overlay-put ov 'priority 1000)
+    (overlay-put ov 'evaporate t)
     (region-cursors--apply-shape ov)
     ov))
 
@@ -482,6 +480,11 @@ Returns nil if rectangle is not valid (single line or column)."
       (when region-active
 	(region-cursors--hide-cursor)
 
+	;; IMPORTANT(abi): force cursor to stay hidden, just in case something restored it.
+	(when (and region-cursors--saved-cursor-type cursor-type)
+	  (setq cursor-type nil)
+	  (force-window-update (selected-window)))
+
 	(when (region-cursors--region-changed-p)
 	  (region-cursors--stop-animation)
 	  (region-cursors--start-animation-delayed))
@@ -545,12 +548,10 @@ Optional _FRAME argument is ignored (for hook compatibility)."
   (if region-cursors-mode
       (progn
 	(add-hook 'post-command-hook #'region-cursors--update)
-	(add-hook 'window-selection-change-functions
-		  #'region-cursors--reset-and-cleanup)
+	(add-hook 'window-selection-change-functions #'region-cursors--reset-and-cleanup)
 	(add-hook 'before-revert-hook #'region-cursors--reset-and-cleanup))
     (remove-hook 'post-command-hook #'region-cursors--update)
-    (remove-hook 'window-selection-change-functions
-		 #'region-cursors--reset-and-cleanup)
+    (remove-hook 'window-selection-change-functions #'region-cursors--reset-and-cleanup)
     (remove-hook 'before-revert-hook #'region-cursors--reset-and-cleanup)
     (region-cursors--cleanup)
     (region-cursors--restore-cursor)
