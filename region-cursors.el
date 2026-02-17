@@ -211,8 +211,8 @@ face background."
   (when (not (eq region-cursors-animation 'none))
     (region-cursors--cancel-animation-timer)
     (setq region-cursors--blink-state t)
-    (setq region-cursors--pulse-step 0)
-    (setq region-cursors--pulse-direction 1)
+    (setq region-cursors--pulse-step region-cursors-pulse-steps)
+    (setq region-cursors--pulse-direction -1)
     ;; NOTE(abi): capture buffer so the repeating timer callback runs in
     ;;            the correct buffer context.  Without this, the timer fires
     ;;            in whatever buffer is current and reads the wrong locals.
