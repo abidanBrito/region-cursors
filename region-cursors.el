@@ -56,12 +56,12 @@ When nil, inherits from the `cursor' face background color."
 		 (const :tag "Pulse" pulse))
   :group 'region-cursors)
 
-(defcustom region-cursors-animation-interval 0.5
+(defcustom region-cursors-animation-interval 0.75
   "Animation interval in seconds when `region-cursors-animation' is not `none'."
   :type 'number
   :group 'region-cursors)
 
-(defcustom region-cursors-animation-delay 1.5
+(defcustom region-cursors-animation-delay 0.75
   "Delay in seconds before starting animation after region becomes static.
 Set to 0 to start animations immediately (no delay)."
   :type 'number
