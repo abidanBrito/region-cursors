@@ -23,12 +23,12 @@
   :group 'editing
   :group 'convenience)
 
-(defcustom region-cursors-cursor-color "#ff6c6b"
+(defcustom region-cursors-cursor-color nil
   "Color used for both point and mark cursor overlays."
   :type 'color
   :group 'region-cursors)
 
-(defcustom region-cursors-cursor-shape 'box
+(defcustom region-cursors-cursor-shape 'box4
   "Shape of the region cursor overlay."
   :type '(choice (const :tag "box" box)
                  (const :tag "bar" bar))
@@ -124,6 +124,14 @@ Set to 0 to start animations immediately (no delay)."
 
 (defvar-local region-cursors--hl-line-was-active nil
   "Track if `hl-line-mode' was active before region activation.")
+
+(defun region-cursors--resolve-cursor-color ()
+  "Return the effective cursor color.
+Uses `region-cursors-cursor-color' if set, otherwise the `cursor'
+face background."
+  (or region-cursors-cursor-color
+      (face-background 'cursor nil t)
+      "#ff6c6b"))
 
 (defun region-cursors--cursor-anchor (pos)
   "Return a safe overlay anchor position for POS, handling EOF."
@@ -226,7 +234,7 @@ Set to 0 to start animations immediately (no delay)."
   (region-cursors--cancel-animation-delay-timer)
   
   ;; NOTE(abi): reset overlays to full cursor color, no blend.
-  (region-cursors--apply-color-to-overlays region-cursors-cursor-color))
+  (region-cursors--apply-color-to-overlays (region-cursors--resolve-cursor-color)))
 
 (defun region-cursors--animate-tick ()
   "Update cursor overlays for the current animation frame."
@@ -235,7 +243,7 @@ Set to 0 to start animations immediately (no delay)."
 	('blink
 	 (setq region-cursors--blink-state (not region-cursors--blink-state))
 	 (let ((color (if region-cursors--blink-state
-			  region-cursors-cursor-color
+			  (region-cursors--resolve-cursor-color)
 			(region-cursors--get-default-background))))
 	   (region-cursors--apply-color-to-overlays color)))
 	
@@ -256,7 +264,7 @@ Set to 0 to start animations immediately (no delay)."
 					region-cursors-pulse-steps))))
 		(bg-color (region-cursors--get-default-background))
 		(color (region-cursors--blend-colors
-			region-cursors-cursor-color
+			(region-cursors--resolve-cursor-color)
 			bg-color
 			alpha)))
 	   (region-cursors--apply-color-to-overlays color))))
@@ -312,7 +320,7 @@ Returns region color if position is at region start, background color if at end.
          (is-tab (and char-at-pos (eq char-at-pos ?\t)))
 	 (cursor-color (or color
 			   (overlay-get ov 'region-cursors-color)
-			   region-cursors-cursor-color)))
+			   (region-cursors--resolve-cursor-color))))
 
     (overlay-put ov 'region-cursors-color cursor-color)
     
