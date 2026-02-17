@@ -493,18 +493,18 @@ Returns nil if rectangle is not valid (single line or column)."
 (defun region-cursors--update (&optional window)
   "Update region cursor overlays.
 WINDOW is the window being redisplayed (from `pre-redisplay-functions')."
-  ;; NOTE(abi): if called for a non-selected window, we need to clean up any
-  ;;            leftover state rather than rendering cursors in an unfocused window.
-  (when (and window (not (eq window (selected-window))))
+  (cond
+   ;; NOTE(abi): if called for a non-selected window, we need to clean up any
+   ;;            leftover state rather than rendering cursors in an unfocused window.
+   ((and window (not (eq window (selected-window))))
     (when region-cursors--region-was-active
       (region-cursors--cleanup)
       (region-cursors--restore-cursor)
       (region-cursors--restore-hl-line)
       (setq region-cursors--region-was-active nil)
-      (setq region-cursors--last-region-bounds nil))
-    (cl-return-from region-cursors--update))
+      (setq region-cursors--last-region-bounds nil)))
 
-  (unless (memq major-mode region-cursors-disabled-modes)
+   ((not (memq major-mode region-cursors-disabled-modes))
     (let ((region-active (use-region-p))
 	  (rect-active (region-cursors--rectangle-active-p)))
       (cond
@@ -572,7 +572,7 @@ WINDOW is the window being redisplayed (from `pre-redisplay-functions')."
 	  ;; Normal region mode
 	  (progn
 	    (region-cursors--update-point-mark-overlays)
-	    (region-cursors--cleanup-rectangle-overlays)))))))
+	    (region-cursors--cleanup-rectangle-overlays))))))))
 
 (defun region-cursors--reset-and-cleanup (&optional _frame)
   "Perform complete state reset and cleanup of overlays.
