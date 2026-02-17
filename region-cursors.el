@@ -48,7 +48,7 @@
   "Animation style for cursor overlays.
 - `none': no animation.
 - `blink': toggle visibility on and off.
-- `pulse:': fade in and out smoothly."
+- `pulse': fade in and out smoothly."
   :type '(choice (const :tag "None" none)
 		 (const :tag "Blink" blink)
 		 (const :tag "Pulse" pulse))
@@ -171,9 +171,15 @@ Set to 0 to start animations immediately (no delay)."
   (if (or (eq region-cursors-animation 'none)
           (<= region-cursors-animation-delay 0))
       (region-cursors--start-animation-timer)
-    (setq region-cursors--animation-delay-timer
-          (run-with-timer region-cursors-animation-delay nil
-                          #'region-cursors--start-animation-timer))))
+    ;; NOTE(abi): capture buffer so the delay timer callback runs in the correct
+    ;;            buffer context, not whatever happens to be current.
+    (let ((buf (current-buffer)))
+      (setq region-cursors--animation-delay-timer
+            (run-with-timer region-cursors-animation-delay nil
+                            (lambda ()
+                              (when (buffer-live-p buf)
+                                (with-current-buffer buf
+                                  (region-cursors--start-animation-timer)))))))))
 
 (defun region-cursors--region-changed-p ()
   "Return non-nil if region bounds have changed since the last check."
@@ -197,13 +203,22 @@ Set to 0 to start animations immediately (no delay)."
     (setq region-cursors--blink-state t)
     (setq region-cursors--pulse-step 0)
     (setq region-cursors--pulse-direction 1)
-    (let ((interval (if (eq region-cursors-animation 'pulse)
-			(/ region-cursors-animation-interval
-			   region-cursors-pulse-steps)
-		      region-cursors-animation-interval)))
+    ;; NOTE(abi): capture buffer so the repeating timer callback runs in
+    ;;            the correct buffer context.  Without this, the timer fires
+    ;;            in whatever buffer is current and reads the wrong locals.
+    (let* ((buf (current-buffer))
+	   (interval (if (eq region-cursors-animation 'pulse)
+			 (/ region-cursors-animation-interval
+			    region-cursors-pulse-steps)
+		       region-cursors-animation-interval)))
       (setq region-cursors--animation-timer
 	    (run-with-timer interval interval
-			    #'region-cursors--animate-tick)))))
+			    (lambda ()
+			      (if (buffer-live-p buf)
+				  (with-current-buffer buf
+				    (region-cursors--animate-tick))
+				;; Buffer was killed; cancel ourselves.
+				(region-cursors--cancel-animation-timer))))))))
 
 (defun region-cursors--stop-animation ()
   "Stop animation and reset overlays to full cursor color."
@@ -261,7 +276,7 @@ Set to 0 to start animations immediately (no delay)."
 (defun region-cursors--color-rgb-to-hex (red green blue &optional digits-per-component)
   "Convert RED GREEN BLUE components to hex string.
 Each component should be a float between 0.0 and 1.0.
-DIGITS-PER-COMPONENT controls precision (defaulta 2, giving #RRGGBB format)."
+DIGITS-PER-COMPONENT controls precision (defaults to 2, giving #RRGGBB format)."
   (let ((digits (or digits-per-component 2)))
     (format (pcase digits
 	      (2 "#%02x%02x%02x")
@@ -391,6 +406,7 @@ Returns region color if position is at region start, background color if at end.
 (defun region-cursors--cleanup ()
   "Remove all region cursor overlays."
   (region-cursors--cancel-animation-timer)
+  (region-cursors--cancel-animation-delay-timer)
   (region-cursors--cleanup-point-mark-overlays)
   (region-cursors--cleanup-rectangle-overlays))
 
@@ -463,8 +479,31 @@ Returns nil if rectangle is not valid (single line or column)."
 	   (move-to-column right-col)
 	   (point)))))))
 
-(defun region-cursors--update (&optional _windows)
-  "Update region cursor overlays."
+(defun region-cursors--update-point-mark-overlays ()
+  "Create or move point and mark cursor overlays."
+  (unless (overlayp region-cursors--point-overlay)
+    (setq region-cursors--point-overlay
+	  (region-cursors--make-overlay (point))))
+  (unless (overlayp region-cursors--mark-overlay)
+    (setq region-cursors--mark-overlay
+	  (region-cursors--make-overlay (mark))))
+  (region-cursors--move-overlay region-cursors--point-overlay (point))
+  (region-cursors--move-overlay region-cursors--mark-overlay (mark)))
+
+(defun region-cursors--update (&optional window)
+  "Update region cursor overlays.
+WINDOW is the window being redisplayed (from `pre-redisplay-functions')."
+  ;; NOTE(abi): if called for a non-selected window, we need to clean up any
+  ;;            leftover state rather than rendering cursors in an unfocused window.
+  (when (and window (not (eq window (selected-window))))
+    (when region-cursors--region-was-active
+      (region-cursors--cleanup)
+      (region-cursors--restore-cursor)
+      (region-cursors--restore-hl-line)
+      (setq region-cursors--region-was-active nil)
+      (setq region-cursors--last-region-bounds nil))
+    (cl-return-from region-cursors--update))
+
   (unless (memq major-mode region-cursors-disabled-modes)
     (let ((region-active (use-region-p))
 	  (rect-active (region-cursors--rectangle-active-p)))
@@ -501,38 +540,38 @@ Returns nil if rectangle is not valid (single line or column)."
 	;; Rectangle mode
 	(if rect-active
 	    (let ((corners (region-cursors--get-rectangle-corners)))
-	      (when corners
-		(unless (overlayp region-cursors--rect-top-left-overlay)
-		  (setq region-cursors--rect-top-left-overlay
-			(region-cursors--make-overlay (nth 0 corners))))
-		(unless (overlayp region-cursors--rect-top-right-overlay)
-		  (setq region-cursors--rect-top-right-overlay
-			(region-cursors--make-overlay (nth 1 corners))))
-		(unless (overlayp region-cursors--rect-bottom-left-overlay)
-		  (setq region-cursors--rect-bottom-left-overlay
-			(region-cursors--make-overlay (nth 2 corners))))
-		(unless (overlayp region-cursors--rect-bottom-right-overlay)
-		  (setq region-cursors--rect-bottom-right-overlay
-			(region-cursors--make-overlay (nth 3 corners))))
-		
-		(region-cursors--move-overlay region-cursors--rect-top-left-overlay (nth 0 corners))
-		(region-cursors--move-overlay region-cursors--rect-top-right-overlay (nth 1 corners))
-		(region-cursors--move-overlay region-cursors--rect-bottom-left-overlay (nth 2 corners))
-		(region-cursors--move-overlay region-cursors--rect-bottom-right-overlay (nth 3 corners)))
+	      (if corners
+		  (progn
+		    ;; Valid rectangle: show four corner cursors.
+		    (unless (overlayp region-cursors--rect-top-left-overlay)
+		      (setq region-cursors--rect-top-left-overlay
+			    (region-cursors--make-overlay (nth 0 corners))))
+		    (unless (overlayp region-cursors--rect-top-right-overlay)
+		      (setq region-cursors--rect-top-right-overlay
+			    (region-cursors--make-overlay (nth 1 corners))))
+		    (unless (overlayp region-cursors--rect-bottom-left-overlay)
+		      (setq region-cursors--rect-bottom-left-overlay
+			    (region-cursors--make-overlay (nth 2 corners))))
+		    (unless (overlayp region-cursors--rect-bottom-right-overlay)
+		      (setq region-cursors--rect-bottom-right-overlay
+			    (region-cursors--make-overlay (nth 3 corners))))
+		    
+		    (region-cursors--move-overlay region-cursors--rect-top-left-overlay (nth 0 corners))
+		    (region-cursors--move-overlay region-cursors--rect-top-right-overlay (nth 1 corners))
+		    (region-cursors--move-overlay region-cursors--rect-bottom-left-overlay (nth 2 corners))
+		    (region-cursors--move-overlay region-cursors--rect-bottom-right-overlay (nth 3 corners))
 
-	      (region-cursors--cleanup-point-mark-overlays))
+		    (region-cursors--cleanup-point-mark-overlays))
+
+		;; FIX(abi): degenerate rectangle (single line or column).
+		;; Clean up any stale rectangle overlays and fall back to
+		;; point/mark cursors so we always show *something*.
+		(region-cursors--cleanup-rectangle-overlays)
+		(region-cursors--update-point-mark-overlays)))
 	  
 	  ;; Normal region mode
 	  (progn
-	    (unless (overlayp region-cursors--point-overlay)
-	      (setq region-cursors--point-overlay
-		    (region-cursors--make-overlay (point))))
-	    (unless (overlayp region-cursors--mark-overlay)
-	      (setq region-cursors--mark-overlay
-		    (region-cursors--make-overlay (mark))))
-	    (region-cursors--move-overlay region-cursors--point-overlay (point))
-	    (region-cursors--move-overlay region-cursors--mark-overlay (mark))
-
+	    (region-cursors--update-point-mark-overlays)
 	    (region-cursors--cleanup-rectangle-overlays)))))))
 
 (defun region-cursors--reset-and-cleanup (&optional _frame)
