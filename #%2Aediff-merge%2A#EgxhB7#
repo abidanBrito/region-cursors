@@ -24,10 +24,15 @@
   :group 'convenience)
 
 (defcustom region-cursors-cursor-color nil
+<<<<<<< variant A
+  "Color used for both point and mark cursor overlays."
+  :type 'color
+>>>>>>> variant B
   "Color used for both point and mark cursor overlays.
 When nil, inherits from the `cursor' face background color."
   :type '(choice (const :tag "Inherit from cursor face" nil)
 		 color)
+======= end
   :group 'region-cursors)
 
 (defcustom region-cursors-cursor-shape 'box4
