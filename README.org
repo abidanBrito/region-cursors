@@ -2,7 +2,7 @@
 #+author: Abidán Brito Clavijo
 #+email: abidan.brito@gmail.com
 
-#+html: <a href="https://github.com/abidanBrito/region-cursors/actions/workflows/melpazoid.yml"><img alt="melpazoid" src="https://github.com/abidanBrito/axon/actions/workflows/melpazoid.yml/badge.svg"/></a>
+#+html: <a href="https://github.com/abidanBrito/region-cursors/actions/workflows/melpazoid.yml"><img alt="melpazoid" src="https://github.com/abidanBrito/region-cursors/actions/workflows/melpazoid.yml/badge.svg"/></a>
 #+html: <a href="https://github.com/abidanBrito/region-cursors"><img alt="status" src="https://img.shields.io/badge/status-WIP-red.svg"/></a>
 
 When a region is active, the cursor marks one end (the point) but the other end (the mark) has no visual indicator beyond the edge of the region highlight. =region-cursors= adds identical cursor-like overlays at both ends, making the selection clearly distinct.
@@ -25,7 +25,8 @@ Clone the repo and point =use-package= at it:
 #+begin_src emacs-lisp
   (use-package region-cursors
     :load-path "~/path/to/region-cursors"
-    :config (region-cursors-mode 1))
+    :config
+    (region-cursors-mode 1))
 #+end_src
 
 *** From github using =straight.el=
@@ -36,7 +37,8 @@ Clone the repo and point =use-package= at it:
   	     :type git
   	     :host github
   	     :repo "abidanBrito/region-cursors")
-    :config (region-cursors-mode 1))
+    :config
+    (region-cursors-mode 1))
 #+end_src
 
 ** Without =use-package=
@@ -80,7 +82,8 @@ Example configuration:
     (region-cursors-animation 'pulse)
     (region-cursors-disable-hl-line-mode t)
     (region-cursors-disabled-modes '(org-mode))
-    :config (region-cursors-mode 1))
+    :config
+    (region-cursors-mode 1))
 #+end_src
 
 * CONTRIBUTING
