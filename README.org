@@ -1,0 +1,94 @@
+#+title: region-cursors
+#+author: Abidán Brito Clavijo
+#+email: abidan.brito@gmail.com
+
+#+html: <a href="https://github.com/abidanBrito/region-cursors/actions/workflows/melpazoid.yml"><img alt="melpazoid" src="https://github.com/abidanBrito/axon/actions/workflows/melpazoid.yml/badge.svg"/></a>
+#+html: <a href="https://github.com/abidanBrito/region-cursors"><img alt="status" src="https://img.shields.io/badge/status-WIP-red.svg"/></a>
+
+When a region is active, the cursor marks one end (the point) but the other end (the mark) has no visual indicator beyond the edge of the region highlight. =region-cursors= adds identical cursor-like overlays at both ends, making the selection clearly distinct.
+
+* FEATURES
+
++ Cursor overlays (box & bar shapes).
++ Cursor animations (blinking and pulsing).
++ Smart animation delay (starts only once the region is static).
++ =rectangle-mark-mode= support (experimental).
+
+* INSTALLATION
+
+** With =use-package=
+
+*** From source
+
+Clone the repo and point =use-package= at it:
+
+#+begin_src emacs-lisp
+  (use-package region-cursors
+    :load-path "~/path/to/region-cursors"
+    :config (region-cursors-mode 1))
+#+end_src
+
+*** From github using =straight.el=
+
+#+begin_src emacs-lisp
+  (use-package region-cursors
+    :straight (region-cursors
+  	     :type git
+  	     :host github
+  	     :repo "abidanBrito/region-cursors")
+    :config (region-cursors-mode 1))
+#+end_src
+
+** Without =use-package=
+
+Clone the repo and load it:
+
+#+begin_src emacs-lisp
+  (add-to-list 'load-path "~/path/to/region-cursors")
+  
+  (require 'region-cursors)
+  (region-cursors-mode 1)
+#+end_src
+
+* CUSTOMIZATIONS
+
+All options live under =M-x customize-group RET region-cursors=. Here are the main ones:
+
+| Variable                              | Default | Description                                    |
+|---------------------------------------+---------+------------------------------------------------|
+| =region-cursors-cursor-color=           | =nil=     | Overlay color (inherits from =cursor= face).     |
+| =region-cursors-cursor-shape=           | =box=     | =box= or =bar=.                                    |
+| =region-cursors-bar-width=              | =2=       | Bar width in pixels.                           |
+| =region-cursors-animation=              | =none=    | =none=, =blink=, or =pulse=.                         |
+| =region-cursors-animation-interval=     | =0.75=    | Seconds between animation frames.              |
+| =region-cursors-animation-delay=        | =0.75=    | Delay before animation starts.                 |
+| =region-cursors-pulse-steps=            | =10=      | Number of steps in a pulse animation cycle.    |
+| =region-cursors-rectangle-mode-support= | =t=       | Show corner cursors in =rectangle-mark-mode=.    |
+| =region-cursors-disabled-modes=         | ='()=     | Major modes to exclude.                        |
+| =region-cursors-disable-hl-line-mode=   | =nil=     | Disable =hl-line-mode= during selection.         |
+
+Example configuration:
+
+#+begin_src emacs-lisp
+   (use-package region-cursors
+    :straight (region-cursors
+        :type git
+        :host github
+        :repo "abidanBrito/region-cursors")
+    :custom
+    (region-cursors-cursor-shape 'box)
+    (region-cursors-animation 'pulse)
+    (region-cursors-disable-hl-line-mode t)
+    (region-cursors-disabled-modes '(org-mode))
+    :config (region-cursors-mode 1))
+#+end_src
+
+* CONTRIBUTING
+
+Contributions are welcome. Please open an issue or pull request on [[https://github.com/abidanBrito/region-cursors][GitHub]].
+
+If you find a bug, include your Emacs version (=M-x emacs-version=), the =region-cursors= settings you're using and steps to reproduce.
+
+* LICENSE
+
+This repository is released under the MIT license. See [[file:LICENSE][LICENSE]] for more information.
