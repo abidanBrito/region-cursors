@@ -12,11 +12,11 @@
 * Table of Contents
 
 - [[#Motivation][Motivation]]
-- [[*Features][Features]]
-- [[*Installation][Installation]]
-- [[*Customization][Customization]]
-- [[*Contributing][Contributing]]
-- [[*License][License]]
+- [[#Features][Features]]
+- [[#Installation][Installation]]
+- [[#Customization][Customization]]
+- [[#Contributing][Contributing]]
+- [[#License][License]]
   
 * Motivation
 
