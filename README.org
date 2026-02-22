@@ -1,20 +1,35 @@
 #+title: region-cursors
 #+author: Abidán Brito Clavijo
 #+email: abidan.brito@gmail.com
+#+options: toc:2
 
+#+html: <div align="center">
 #+html: <a href="https://github.com/abidanBrito/region-cursors/actions/workflows/melpazoid.yml"><img alt="melpazoid" src="https://github.com/abidanBrito/region-cursors/actions/workflows/melpazoid.yml/badge.svg"/></a>
 #+html: <a href="https://github.com/abidanBrito/region-cursors"><img alt="status" src="https://img.shields.io/badge/status-WIP-red.svg"/></a>
+#+html: <a href="https://github.com/abidanBrito/region-cursors/blob/main/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-brightgreen.svg"/></a>
+#+html: </div>
+
+* Table of Contents
+
+- [[#Motivation][Motivation]]
+- [[*Features][Features]]
+- [[*Installation][Installation]]
+- [[*Customization][Customization]]
+- [[*Contributing][Contributing]]
+- [[*License][License]]
+  
+* Motivation
 
 When a region is active, the cursor marks one end (the point) but the other end (the mark) has no visual indicator beyond the edge of the region highlight. =region-cursors= adds identical cursor-like overlays at both ends, making the selection clearly distinct.
 
-* FEATURES
+* Features
 
 + Cursor overlays (box & bar shapes).
 + Cursor animations (blinking and pulsing).
 + Smart animation delay (starts only once the region is static).
 + =rectangle-mark-mode= support (experimental).
 
-* INSTALLATION
+* Installation
 
 ** With =use-package=
 
@@ -52,7 +67,7 @@ Clone the repo and load it:
   (region-cursors-mode 1)
 #+end_src
 
-* CUSTOMIZATIONS
+* Customization
 
 All options live under =M-x customize-group RET region-cursors=. Here are the main ones:
 
@@ -86,12 +101,12 @@ Example configuration:
     (region-cursors-mode 1))
 #+end_src
 
-* CONTRIBUTING
+* Contributing
 
 Contributions are welcome. Please open an issue or pull request on [[https://github.com/abidanBrito/region-cursors][GitHub]].
 
 If you find a bug, include your Emacs version (=M-x emacs-version=), the =region-cursors= settings you're using and steps to reproduce.
 
-* LICENSE
+* License
 
 This repository is released under the MIT license. See [[file:LICENSE][LICENSE]] for more information.
