@@ -127,6 +127,15 @@ Set to 0 to start animations immediately (no delay)."
 (defvar-local region-cursors--hl-line-was-active nil
   "Track if `hl-line-mode' was active before region activation.")
 
+(defmacro region-cursors--ensure-overlay! (var pos)
+  "Ensure VAR holds a live cursor overlay at POS.
+If VAR is already a live overlay it is moved to POS; otherwise a new
+overlay is created at POS.  VAR is updated in place either way."
+  `(setq ,var
+         (if (overlayp ,var)
+             (progn (region-cursors--move-overlay ,var ,pos) ,var)
+           (region-cursors--make-overlay ,pos))))
+
 (defmacro region-cursors--delete-overlay! (var)
   "Delete overlay stored in VAR and set VAR to nil.
 VAR must be a symbol naming a variable holding an overlay or nil."
@@ -486,14 +495,8 @@ Returns nil if rectangle is not valid (single line or column)."
 
 (defun region-cursors--update-point-mark-overlays ()
   "Create or move point and mark cursor overlays."
-  (unless (overlayp region-cursors--point-overlay)
-    (setq region-cursors--point-overlay
-	  (region-cursors--make-overlay (point))))
-  (unless (overlayp region-cursors--mark-overlay)
-    (setq region-cursors--mark-overlay
-	  (region-cursors--make-overlay (mark))))
-  (region-cursors--move-overlay region-cursors--point-overlay (point))
-  (region-cursors--move-overlay region-cursors--mark-overlay (mark)))
+  (region-cursors--ensure-overlay! region-cursors--point-overlay (point))
+  (region-cursors--ensure-overlay! region-cursors--mark-overlay (mark)))
 
 (defun region-cursors--update (&optional window)
   "Update region cursor overlays.
@@ -547,30 +550,15 @@ WINDOW is the window being redisplayed (from `pre-redisplay-functions')."
 	    (let ((corners (region-cursors--get-rectangle-corners)))
 	      (if corners
 		  (progn
-		    ;; Valid rectangle: show four corner cursors.
-		    (unless (overlayp region-cursors--rect-top-left-overlay)
-		      (setq region-cursors--rect-top-left-overlay
-			    (region-cursors--make-overlay (nth 0 corners))))
-		    (unless (overlayp region-cursors--rect-top-right-overlay)
-		      (setq region-cursors--rect-top-right-overlay
-			    (region-cursors--make-overlay (nth 1 corners))))
-		    (unless (overlayp region-cursors--rect-bottom-left-overlay)
-		      (setq region-cursors--rect-bottom-left-overlay
-			    (region-cursors--make-overlay (nth 2 corners))))
-		    (unless (overlayp region-cursors--rect-bottom-right-overlay)
-		      (setq region-cursors--rect-bottom-right-overlay
-			    (region-cursors--make-overlay (nth 3 corners))))
-		    
-		    (region-cursors--move-overlay region-cursors--rect-top-left-overlay (nth 0 corners))
-		    (region-cursors--move-overlay region-cursors--rect-top-right-overlay (nth 1 corners))
-		    (region-cursors--move-overlay region-cursors--rect-bottom-left-overlay (nth 2 corners))
-		    (region-cursors--move-overlay region-cursors--rect-bottom-right-overlay (nth 3 corners))
+		    (region-cursors--ensure-overlay! region-cursors--rect-top-left-overlay (nth 0 corners))
+		    (region-cursors--ensure-overlay! region-cursors--rect-top-right-overlay (nth 1 corners))
+		    (region-cursors--ensure-overlay! region-cursors--rect-bottom-left-overlay (nth 2 corners))
+		    (region-cursors--ensure-overlay! region-cursors--rect-bottom-right-overlay (nth 3 corners))
 
 		    (region-cursors--cleanup-point-mark-overlays))
 
 		;; FIX(abi): degenerate rectangle (single line or column).
-		;; Clean up any stale rectangle overlays and fall back to
-		;; point/mark cursors so we always show *something*.
+		;; Clean up any stale overlays and fall back to point/mark cursors so that we always show something.
 		(region-cursors--cleanup-rectangle-overlays)
 		(region-cursors--update-point-mark-overlays)))
 	  
