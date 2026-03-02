@@ -9,6 +9,10 @@
 #+html: <a href="https://github.com/abidanBrito/region-cursors/blob/main/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-brightgreen.svg"/></a>
 #+html: </div>
 
+#+html: <div align="center">
+#+html: <img alt="Demo" src="img/demo.gif"/>
+#+html: </div>
+
 * Table of Contents
 
 - [[#Motivation][Motivation]]
