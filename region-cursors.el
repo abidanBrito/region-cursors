@@ -127,6 +127,13 @@ Set to 0 to start animations immediately (no delay)."
 (defvar-local region-cursors--hl-line-was-active nil
   "Track if `hl-line-mode' was active before region activation.")
 
+(defmacro region-cursors--delete-overlay! (var)
+  "Delete overlay stored in VAR and set VAR to nil.
+VAR must be a symbol naming a variable holding an overlay or nil."
+  `(when (overlayp ,var)
+     (delete-overlay ,var)
+     (setq ,var nil)))
+
 (defun region-cursors--resolve-cursor-color ()
   "Return the effective cursor color.
 Uses `region-cursors-cursor-color' if set, otherwise the `cursor'
@@ -391,27 +398,15 @@ Returns region color if position is at region start, background color if at end.
 
 (defun region-cursors--cleanup-point-mark-overlays ()
   "Remove point and mark cursor overlays."
-  (when (overlayp region-cursors--point-overlay)
-    (delete-overlay region-cursors--point-overlay)
-    (setq region-cursors--point-overlay nil))
-  (when (overlayp region-cursors--mark-overlay)
-    (delete-overlay region-cursors--mark-overlay)
-    (setq region-cursors--mark-overlay nil)))
+  (region-cursors--delete-overlay! region-cursors--point-overlay)
+  (region-cursors--delete-overlay! region-cursors--mark-overlay))
 
 (defun region-cursors--cleanup-rectangle-overlays ()
   "Remove rectangle corner cursor overlays."
-  (when (overlayp region-cursors--rect-top-left-overlay)
-    (delete-overlay region-cursors--rect-top-left-overlay)
-    (setq region-cursors--rect-top-left-overlay nil))
-  (when (overlayp region-cursors--rect-top-right-overlay)
-    (delete-overlay region-cursors--rect-top-right-overlay)
-    (setq region-cursors--rect-top-right-overlay nil))
-  (when (overlayp region-cursors--rect-bottom-left-overlay)
-    (delete-overlay region-cursors--rect-bottom-left-overlay)
-    (setq region-cursors--rect-bottom-left-overlay nil))
-  (when (overlayp region-cursors--rect-bottom-right-overlay)
-    (delete-overlay region-cursors--rect-bottom-right-overlay)
-    (setq region-cursors--rect-bottom-right-overlay nil)))
+  (region-cursors--delete-overlay! region-cursors--rect-top-left-overlay)
+  (region-cursors--delete-overlay! region-cursors--rect-top-right-overlay)
+  (region-cursors--delete-overlay! region-cursors--rect-bottom-left-overlay)
+  (region-cursors--delete-overlay! region-cursors--rect-bottom-right-overlay))
 
 (defun region-cursors--cleanup ()
   "Remove all region cursor overlays."
