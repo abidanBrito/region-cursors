@@ -88,6 +88,8 @@ Set to 0 to start animations immediately (no delay)."
   :type '(repeat symbol)
   :group 'region-cursors)
 
+(defconst region-cursors--cursor-saved-sentinel :saved)
+
 (defvar-local region-cursors--point-overlay nil
   "Overlay for the point position.")
 
@@ -178,17 +180,17 @@ face background."
 
 (defun region-cursors--hide-cursor ()
   "Hide the real cursor, saving its previous value."
-  (unless region-cursors--saved-cursor-type
-    (internal-show-cursor (selected-window) nil)
-    (force-window-update (selected-window))
-    (setq region-cursors--saved-cursor-type cursor-type)))
+  (unless (eq region-cursors--saved-cursor-type region-cursors--cursor-saved-sentinel)
+    (setq region-cursors--saved-cursor-type (or cursor-type region-cursors--cursor-saved-sentinel))
+    (setq cursor-type nil)))
 
 (defun region-cursors--restore-cursor ()
   "Restore the real cursor if it was hidden."
   (when region-cursors--saved-cursor-type
-    (internal-show-cursor (selected-window) t)
-    (force-window-update (selected-window))
-    (setq cursor-type region-cursors--saved-cursor-type)
+    (setq cursor-type
+          (if (eq region-cursors--saved-cursor-type region-cursors--cursor-saved-sentinel)
+              nil
+            region-cursors--saved-cursor-type))
     (setq region-cursors--saved-cursor-type nil)))
 
 (defun region-cursors--cancel-animation-delay-timer ()
@@ -560,9 +562,8 @@ WINDOW is the window being redisplayed (from `pre-redisplay-functions')."
         (region-cursors--hide-cursor)
 
         ;; IMPORTANT(abi): force cursor to stay hidden, just in case something restored it.
-        (when (and region-cursors--saved-cursor-type cursor-type)
-          (setq cursor-type nil)
-          (force-window-update (selected-window)))
+	(when (and region-cursors--saved-cursor-type cursor-type)
+	  (setq cursor-type nil))
 
         (when (region-cursors--region-changed-p)
           (region-cursors--stop-animation)
