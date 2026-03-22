@@ -91,7 +91,7 @@ Set to 0 to start animations immediately (no delay)."
   :safe #'booleanp
   :group 'region-cursors)
 
-(defcustom region-cursors-scroll-settle-delay 0.3
+(defcustom region-cursors-scroll-settle-delay 0.25
   "Seconds of scroll inactivity before restarting animation."
   :type 'number
   :safe #'numberp
@@ -151,6 +151,9 @@ Set to 0 to start animations immediately (no delay)."
 
 (defvar-local region-cursors--scroll-timer nil
   "Timer to restart animation after scrolling stops.")
+
+(defvar-local region-cursors--last-window-start nil
+  "Last known window start position, used to detect scrolling.")
 
 (defvar-local region-cursors--blink-state t
   "Current visibility state for blinking cursors (t = visible).")
@@ -640,6 +643,15 @@ WINDOW is the window being redisplayed (from `pre-redisplay-functions')."
         ;; IMPORTANT(abi): force cursor to stay hidden, just in case something restored it.
         (when (and region-cursors--saved-cursor-type cursor-type)
           (setq cursor-type nil))
+
+        ;; NOTE(abi): detect scrolling every frame for immediate animation stop.
+        (let ((current-start (window-start)))
+          (when (and region-cursors-reset-animation-on-scroll
+                     region-cursors--last-window-start
+                     (not (= current-start region-cursors--last-window-start))
+                     (timerp region-cursors--animation-timer))
+            (region-cursors--stop-animation))
+          (setq region-cursors--last-window-start current-start))
 
         (when (region-cursors--region-changed-p)
           (region-cursors--stop-animation)
