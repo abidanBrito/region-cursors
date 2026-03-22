@@ -71,6 +71,18 @@ Set to 0 to start animations immediately (no delay)."
   :safe #'numberp
   :group 'region-cursors)
 
+(defcustom region-cursors-reset-animation-on-scroll t
+  "Whether to reset cursor overlay animations when scrolling occurs."
+  :type 'boolean
+  :safe #'booleanp
+  :group 'region-cursors)
+
+(defcustom region-cursors-scroll-settle-delay 0.3
+  "Seconds of scroll inactivity before restarting animation."
+  :type 'number
+  :safe #'numberp
+  :group 'region-cursors)
+
 (defcustom region-cursors-pulse-steps 10
   "Number of steps in pulse animation cycle."
   :type 'integer
@@ -122,6 +134,9 @@ Set to 0 to start animations immediately (no delay)."
 
 (defvar-local region-cursors--animation-delay-timer nil
   "Timer that waits before starting animation on static region.")
+
+(defvar-local region-cursors--scroll-timer nil
+  "Timer to restart animation after scrolling stops.")
 
 (defvar-local region-cursors--blink-state t
   "Current visibility state for blinking cursors (t = visible).")
@@ -301,6 +316,24 @@ face background."
        (region-cursors--cancel-animation-timer)
        (message "region-cursors animation error: %S" err)))))
 
+(defun region-cursors--on-scroll (window _start-pos)
+  "Stop animation when scrolling occurs in WINDOW, restart after it settles."
+  (when (and region-cursors-reset-animation-on-scroll
+             (eq window (selected-window))
+             region-cursors--region-was-active)
+    (region-cursors--stop-animation)
+    (when (timerp region-cursors--scroll-timer)
+      (cancel-timer region-cursors--scroll-timer)
+      (setq region-cursors--scroll-timer nil))
+    (let ((buf (current-buffer)))
+      (setq region-cursors--scroll-timer
+            (run-with-timer region-cursors-scroll-settle-delay nil
+                            (lambda ()
+                              (when (buffer-live-p buf)
+                                (with-current-buffer buf
+                                  (setq region-cursors--scroll-timer nil)
+                                  (region-cursors--start-animation-delayed)))))))))
+
 (defun region-cursors--get-default-background ()
   "Get the default background color for the current frame."
   (or (face-background 'default)
@@ -429,6 +462,9 @@ Returns region color if position is at region start, background color if at end.
   "Remove all region cursor overlays."
   (region-cursors--cancel-animation-timer)
   (region-cursors--cancel-animation-delay-timer)
+  (when (timerp region-cursors--scroll-timer)
+    (cancel-timer region-cursors--scroll-timer)
+    (setq region-cursors--scroll-timer nil))
   (region-cursors--cleanup-point-mark-overlays)
   (region-cursors--cleanup-rectangle-overlays))
 
@@ -595,10 +631,12 @@ Optional _FRAME argument is ignored (for hook compatibility)."
       (progn
         (add-hook 'pre-redisplay-functions #'region-cursors--update)
         (add-hook 'window-selection-change-functions #'region-cursors--reset-and-cleanup)
-        (add-hook 'before-revert-hook #'region-cursors--reset-and-cleanup))
+        (add-hook 'before-revert-hook #'region-cursors--reset-and-cleanup)
+	(add-hook 'window-scroll-functions #'region-cursors--on-scroll))
     (remove-hook 'pre-redisplay-functions #'region-cursors--update)
     (remove-hook 'window-selection-change-functions #'region-cursors--reset-and-cleanup)
     (remove-hook 'before-revert-hook #'region-cursors--reset-and-cleanup)
+    (remove-hook 'window-scroll-functions #'region-cursors--on-scroll)
     (region-cursors--cleanup)
     (region-cursors--restore-cursor)
     (setq region-cursors--region-was-active nil)))
