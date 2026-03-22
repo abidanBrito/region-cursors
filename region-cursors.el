@@ -23,10 +23,24 @@
   :group 'editing
   :group 'convenience)
 
-(defcustom region-cursors-cursor-color nil
-  "Color used for both point and mark cursor overlays.
+(defcustom region-cursors-point-cursor-color nil
+  "Color used for the point cursor overlay.
 When nil, inherits from the `cursor' face background color."
   :type '(choice (const :tag "Inherit from cursor face" nil)
+                 color)
+  :group 'region-cursors)
+
+(defcustom region-cursors-mark-cursor-color nil
+  "Color for the mark cursor overlay.
+When nil, falls back to `region-cursors-point-cursor-color'."
+  :type '(choice (const :tag "Inherit from cursor color" nil)
+                 color)
+  :group 'region-cursors)
+
+(defcustom region-cursors-rectangle-cursor-color nil
+  "Color for rectangle corner cursor overlays.
+When nil, falls back to `region-cursors-point-cursor-color'."
+  :type '(choice (const :tag "Inherit from cursor color" nil)
                  color)
   :group 'region-cursors)
 
@@ -167,12 +181,20 @@ VAR must be a symbol naming a variable holding an overlay or nil."
      (setq ,var nil)))
 
 (defun region-cursors--resolve-cursor-color ()
-  "Return the effective cursor color.
-Uses `region-cursors-cursor-color' if set, otherwise the `cursor'
-face background."
-  (or region-cursors-cursor-color
+  "Return the effective point cursor color."
+  (or region-cursors-point-cursor-color
       (face-background 'cursor nil t)
       "#ff6c6b"))
+
+(defun region-cursors--resolve-mark-color ()
+  "Return the effective mark cursor color."
+  (or region-cursors-mark-cursor-color
+      (region-cursors--resolve-cursor-color)))
+
+(defun region-cursors--resolve-rectangle-color ()
+  "Return the effective rectangle cursor color."
+  (or region-cursors-rectangle-cursor-color
+      (region-cursors--resolve-cursor-color)))
 
 (defun region-cursors--cursor-anchor (pos)
   "Return a safe overlay anchor position for POS, handling EOF."
@@ -549,7 +571,11 @@ Cleans up overlays, restores cursor and hl-line, and resets tracking variables."
 (defun region-cursors--update-point-mark-overlays ()
   "Create or move point and mark cursor overlays."
   (region-cursors--ensure-overlay! region-cursors--point-overlay (point))
-  (region-cursors--ensure-overlay! region-cursors--mark-overlay (mark)))
+  (region-cursors--ensure-overlay! region-cursors--mark-overlay (mark))
+  (region-cursors--apply-shape region-cursors--point-overlay
+                               (region-cursors--resolve-cursor-color))
+  (region-cursors--apply-shape region-cursors--mark-overlay
+                               (region-cursors--resolve-mark-color)))
 
 (defun region-cursors--update-rectangle-overlays ()
   "Create or move rectangle corner overlays."
