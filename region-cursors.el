@@ -539,7 +539,7 @@ WINDOW is the window being redisplayed (from `pre-redisplay-functions')."
     (when region-cursors--region-was-active
       (region-cursors--deactivate)))
 
-   ((not (memq major-mode region-cursors-disabled-modes))
+   ((not (apply #'derived-mode-p region-cursors-disabled-modes))
     (let ((region-active (use-region-p))
           (rect-active (region-cursors--rectangle-active-p)))
       (cond
