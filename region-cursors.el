@@ -30,7 +30,7 @@ When nil, inherits from the `cursor' face background color."
                  color)
   :group 'region-cursors)
 
-(defcustom region-cursors-cursor-shape 'box4
+(defcustom region-cursors-cursor-shape 'box
   "Shape of the region cursor overlay."
   :type '(choice (const :tag "box" box)
                  (const :tag "bar" bar))
@@ -39,11 +39,13 @@ When nil, inherits from the `cursor' face background color."
 (defcustom region-cursors-bar-width 2
   "Width of the bar cursor in pixels when `region-cursors-cursor-shape' is `bar`."
   :type 'integer
+  :safe #'integerp
   :group 'region-cursors)
 
 (defcustom region-cursors-rectangle-mode-support t
   "Whether to show corner cursors in `rectangle-mark-mode'."
   :type 'boolean
+  :safe #'booleanp
   :group 'region-cursors)
 
 (defcustom region-cursors-animation 'none
@@ -59,22 +61,26 @@ When nil, inherits from the `cursor' face background color."
 (defcustom region-cursors-animation-interval 0.75
   "Animation interval in seconds when `region-cursors-animation' is not `none'."
   :type 'number
+  :safe #'numberp
   :group 'region-cursors)
 
 (defcustom region-cursors-animation-delay 0.75
   "Delay in seconds before starting animation after region becomes static.
 Set to 0 to start animations immediately (no delay)."
   :type 'number
+  :safe #'numberp
   :group 'region-cursors)
 
 (defcustom region-cursors-pulse-steps 10
   "Number of steps in pulse animation cycle."
   :type 'integer
+  :safe #'integerp
   :group 'region-cursors)
 
 (defcustom region-cursors-disable-hl-line-mode nil
   "Whether to disable `hl-line-mode' while region is active."
   :type 'boolean
+  :safe #'booleanp
   :group 'region-cursors)
 
 (defcustom region-cursors-disabled-modes '()
