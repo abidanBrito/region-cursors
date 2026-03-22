@@ -587,7 +587,7 @@ Optional _FRAME argument is ignored (for hook compatibility)."
   When enabled, cursor-like overlays replace the real cursor while
   a region is active."
   :global t
-  :lighter " ●○"
+  :lighter " rc"
   ;; NOTE(abi): updates happen before redisplay to ensure overlays stay
   ;;            in sync during mouse drag operations and whatnot.
   (if region-cursors-mode
