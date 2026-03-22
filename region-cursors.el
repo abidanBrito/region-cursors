@@ -296,8 +296,8 @@ VAR must be a symbol naming a variable holding an overlay or nil."
   (region-cursors--cancel-animation-timer)
   (region-cursors--cancel-animation-delay-timer)
 
-  ;; NOTE(abi): reset overlays to full cursor color, no blend.
-  (region-cursors--apply-color-to-overlays (region-cursors--resolve-cursor-color)))
+  ;; NOTE(abi): restore each overlay's own base color, no blend.
+  (region-cursors--apply-color-to-overlays nil t 'restore))
 
 (defun region-cursors--animate-tick ()
   "Update cursor overlays for the current animation frame."
@@ -305,10 +305,10 @@ VAR must be a symbol naming a variable holding an overlay or nil."
       (pcase region-cursors-animation
         ('blink
          (setq region-cursors--blink-state (not region-cursors--blink-state))
-         (let ((color (if region-cursors--blink-state
-                          (region-cursors--resolve-cursor-color)
-                        (region-cursors--get-default-background))))
-           (region-cursors--apply-color-to-overlays color)))
+         (if region-cursors--blink-state
+             (region-cursors--apply-color-to-overlays nil nil t)
+           (region-cursors--apply-color-to-overlays
+            (region-cursors--get-default-background))))
 
         ('pulse
          ;; Update pulse step
@@ -323,14 +323,9 @@ VAR must be a symbol naming a variable holding an overlay or nil."
          ;; Calculate alpha
          ;; NOTE(abi): we hardcode 0.3 to 1.0 for a smooth pulse, but maybe we
          ;;            could expose these to the user.
-         (let* ((alpha (+ 0.3 (* 0.7 (/ (float region-cursors--pulse-step)
-                                        region-cursors-pulse-steps))))
-                (bg-color (region-cursors--get-default-background))
-                (color (region-cursors--blend-colors
-                        (region-cursors--resolve-cursor-color)
-                        bg-color
-                        alpha)))
-           (region-cursors--apply-color-to-overlays color))))
+         (let ((alpha (+ 0.3 (* 0.7 (/ (float region-cursors--pulse-step)
+                                       region-cursors-pulse-steps)))))
+           (region-cursors--apply-color-to-overlays alpha t))))
 
     ;; If animation fails, cancel the timer to prevent repeated errors
     (error
@@ -394,8 +389,9 @@ Returns region color if position is at region start, background color if at end.
         (or (face-background 'region nil t) "#3a3f5a")
       (region-cursors--get-default-background))))
 
-(defun region-cursors--apply-shape (ov &optional color)
-  "Apply cursor shape settings to overlay OV with optional COLOR."
+(defun region-cursors--apply-shape (ov &optional color keep-base-color)
+  "Apply cursor shape settings to overlay OV with optional COLOR.
+If KEEP-BASE-COLOR is non-nil, do not overwrite the stored base color."
   (let* ((pos (overlay-start ov))
          (char-at-pos (char-after pos))
          (is-tab (and char-at-pos (eq char-at-pos ?\t)))
@@ -403,7 +399,8 @@ Returns region color if position is at region start, background color if at end.
                            (overlay-get ov 'region-cursors-color)
                            (region-cursors--resolve-cursor-color))))
 
-    (overlay-put ov 'region-cursors-color cursor-color)
+    (unless keep-base-color
+      (overlay-put ov 'region-cursors-color cursor-color))
 
     (pcase region-cursors-cursor-shape
       ('box
@@ -433,8 +430,10 @@ Returns region color if position is at region start, background color if at end.
                                 'display `(space :width (,region-cursors-bar-width))
                                 'face `(:background ,cursor-color)))))))
 
-(defun region-cursors--apply-color-to-overlays (color)
-  "Apply COLOR to all cursor overlays."
+(defun region-cursors--apply-color-to-overlays (color-or-alpha &optional is-alpha restore)
+  "Apply COLOR-OR-ALPHA to all cursor overlays.
+If IS-ALPHA is non-nil, treat as alpha and blend from each overlay's base color.
+If RESTORE is non-nil, reset each overlay to its own stored base color."
   (dolist (ov (list region-cursors--point-overlay
                     region-cursors--mark-overlay
                     region-cursors--rect-top-left-overlay
@@ -442,7 +441,16 @@ Returns region color if position is at region start, background color if at end.
                     region-cursors--rect-bottom-left-overlay
                     region-cursors--rect-bottom-right-overlay))
     (when (and (overlayp ov) (overlay-buffer ov))
-      (region-cursors--apply-shape ov color))))
+      (let ((color (cond
+                    (restore
+                     (overlay-get ov 'region-cursors-color))
+                    (is-alpha
+                     (region-cursors--blend-colors
+                      (overlay-get ov 'region-cursors-color)
+                      (region-cursors--get-default-background)
+                      color-or-alpha))
+                    (t color-or-alpha))))
+        (region-cursors--apply-shape ov color is-alpha)))))
 
 (defun region-cursors--disable-hl-line ()
   "Disable `hl-line-mode' locally if requested."
@@ -505,7 +513,8 @@ Returns region color if position is at region start, background color if at end.
     (move-overlay ov (car range) (cdr range))
 
     ;; NOTE(abi): we reapply shape after moving, just in case we land on a tab.
-    (region-cursors--apply-shape ov)))
+    (unless (timerp region-cursors--animation-timer)
+      (region-cursors--apply-shape ov))))
 
 (defun region-cursors--rectangle-active-p ()
   "Return non-nil if `rectangle-mark-mode' is active."
@@ -572,10 +581,15 @@ Cleans up overlays, restores cursor and hl-line, and resets tracking variables."
   "Create or move point and mark cursor overlays."
   (region-cursors--ensure-overlay! region-cursors--point-overlay (point))
   (region-cursors--ensure-overlay! region-cursors--mark-overlay (mark))
-  (region-cursors--apply-shape region-cursors--point-overlay
-                               (region-cursors--resolve-cursor-color))
-  (region-cursors--apply-shape region-cursors--mark-overlay
-                               (region-cursors--resolve-mark-color)))
+  (overlay-put region-cursors--point-overlay 'region-cursors-color
+               (region-cursors--resolve-cursor-color))
+  (overlay-put region-cursors--mark-overlay 'region-cursors-color
+               (region-cursors--resolve-mark-color))
+  (unless (timerp region-cursors--animation-timer)
+    (region-cursors--apply-shape region-cursors--point-overlay
+                                 (region-cursors--resolve-cursor-color))
+    (region-cursors--apply-shape region-cursors--mark-overlay
+                                 (region-cursors--resolve-mark-color))))
 
 (defun region-cursors--update-rectangle-overlays ()
   "Create or move rectangle corner overlays."
@@ -624,8 +638,8 @@ WINDOW is the window being redisplayed (from `pre-redisplay-functions')."
         (region-cursors--hide-cursor)
 
         ;; IMPORTANT(abi): force cursor to stay hidden, just in case something restored it.
-	(when (and region-cursors--saved-cursor-type cursor-type)
-	  (setq cursor-type nil))
+        (when (and region-cursors--saved-cursor-type cursor-type)
+          (setq cursor-type nil))
 
         (when (region-cursors--region-changed-p)
           (region-cursors--stop-animation)
@@ -658,7 +672,7 @@ Optional _FRAME argument is ignored (for hook compatibility)."
         (add-hook 'pre-redisplay-functions #'region-cursors--update)
         (add-hook 'window-selection-change-functions #'region-cursors--reset-and-cleanup)
         (add-hook 'before-revert-hook #'region-cursors--reset-and-cleanup)
-	(add-hook 'window-scroll-functions #'region-cursors--on-scroll))
+        (add-hook 'window-scroll-functions #'region-cursors--on-scroll))
     (remove-hook 'pre-redisplay-functions #'region-cursors--update)
     (remove-hook 'window-selection-change-functions #'region-cursors--reset-and-cleanup)
     (remove-hook 'before-revert-hook #'region-cursors--reset-and-cleanup)
