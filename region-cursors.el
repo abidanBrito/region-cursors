@@ -56,13 +56,13 @@ When nil, falls back to `region-cursors-point-cursor-color'."
   :safe #'integerp
   :group 'region-cursors)
 
-(defcustom region-cursors-rectangle-mode-support t
+(defcustom region-cursors-rectangle-mode-support nil
   "Whether to show corner cursors in `rectangle-mark-mode'."
   :type 'boolean
   :safe #'booleanp
   :group 'region-cursors)
 
-(defcustom region-cursors-animation 'none
+(defcustom region-cursors-animation 'pulse
   "Animation style for cursor overlays.
 - `none': no animation.
 - `blink': toggle visibility on and off.
@@ -242,18 +242,18 @@ VAR must be a symbol naming a variable holding an overlay or nil."
 (defun region-cursors--start-animation-delayed ()
   "Start animation after delay if region remains static."
   (region-cursors--cancel-animation-delay-timer)
-  (if (or (eq region-cursors-animation 'none)
-          (<= region-cursors-animation-delay 0))
-      (region-cursors--start-animation-timer)
-    ;; NOTE(abi): capture buffer so the delay timer callback runs in the correct
-    ;;            buffer context, not whatever happens to be current.
-    (let ((buf (current-buffer)))
-      (setq region-cursors--animation-delay-timer
-            (run-with-timer region-cursors-animation-delay nil
-                            (lambda ()
-                              (when (buffer-live-p buf)
-                                (with-current-buffer buf
-                                  (region-cursors--start-animation-timer)))))))))
+  (unless (eq region-cursors-animation 'none)
+    (if (<= region-cursors-animation-delay 0)
+        (region-cursors--start-animation-timer)
+      ;; NOTE(abi): capture buffer so the delay timer callback runs in the correct
+      ;;            buffer context, not whatever happens to be current.
+      (let ((buf (current-buffer)))
+        (setq region-cursors--animation-delay-timer
+              (run-with-timer region-cursors-animation-delay nil
+                              (lambda ()
+                                (when (buffer-live-p buf)
+                                  (with-current-buffer buf
+                                    (region-cursors--start-animation-timer))))))))))
 
 (defun region-cursors--region-changed-p ()
   "Return non-nil if region bounds have changed since the last check."
