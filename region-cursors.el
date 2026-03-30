@@ -220,7 +220,7 @@ VAR must be a symbol naming a variable holding an overlay or nil."
 
 (defun region-cursors--hide-cursor ()
   "Hide the real cursor, saving its previous value."
-  (unless (eq region-cursors--saved-cursor-type region-cursors--cursor-saved-sentinel)
+  (unless region-cursors--saved-cursor-type
     (setq region-cursors--saved-cursor-type (or cursor-type region-cursors--cursor-saved-sentinel))
     (setq cursor-type nil)))
 
@@ -640,7 +640,7 @@ WINDOW is the window being redisplayed (from `pre-redisplay-functions')."
       (when region-active
         (region-cursors--hide-cursor)
 
-        ;; IMPORTANT(abi): force cursor to stay hidden, just in case something restored it.
+        ;; IMPORTANT(abi): force cursor to stay hidden, just in case it gets restored.
         (when (and region-cursors--saved-cursor-type cursor-type)
           (setq cursor-type nil))
 
