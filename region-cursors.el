@@ -421,7 +421,8 @@ If KEEP-BASE-COLOR is non-nil, do not overwrite the stored base color."
                                        'face `(:background ,spacer-color))))
              (overlay-put ov 'before-string nil))
          (progn
-           (overlay-put ov 'face `(:background ,cursor-color))
+	   (let ((fg (region-cursors--get-default-background)))
+	     (overlay-put ov 'face `(:background ,cursor-color :foreground ,fg)))
            (overlay-put ov 'display nil)
            (overlay-put ov 'before-string nil))))
 
