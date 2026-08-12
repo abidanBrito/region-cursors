@@ -186,6 +186,16 @@ VAR must be a symbol naming a variable holding an overlay or nil."
      (delete-overlay ,var)
      (setq ,var nil)))
 
+(defun region-cursors--all-overlays ()
+  "Return the list of all cursor overlays.
+Note that entries may be nil or dead, so callers should guard with `overlayp'."
+  (list region-cursors--point-overlay
+        region-cursors--mark-overlay
+        region-cursors--rect-top-left-overlay
+        region-cursors--rect-top-right-overlay
+        region-cursors--rect-bottom-left-overlay
+        region-cursors--rect-bottom-right-overlay))
+
 (defun region-cursors--resolve-cursor-color ()
   "Return the effective point cursor color."
   (or region-cursors-point-cursor-color
@@ -441,12 +451,7 @@ If KEEP-BASE-COLOR is non-nil, do not overwrite the stored base color."
   "Apply COLOR-OR-ALPHA to all cursor overlays.
 If IS-ALPHA is non-nil, treat as alpha and blend from each overlay's base color.
 If RESTORE is non-nil, reset each overlay to its own stored base color."
-  (dolist (ov (list region-cursors--point-overlay
-                    region-cursors--mark-overlay
-                    region-cursors--rect-top-left-overlay
-                    region-cursors--rect-top-right-overlay
-                    region-cursors--rect-bottom-left-overlay
-                    region-cursors--rect-bottom-right-overlay))
+  (dolist (ov (region-cursors--all-overlays))
     (when (and (overlayp ov) (overlay-buffer ov))
       (let ((color (cond
                     (restore
@@ -620,12 +625,7 @@ Overlays belong to a buffer, not a window.  This means that they render
 in every window showing that buffer.  Setting the `window' overlay property
 scopes each cursor to WIN, so that the same buffer displayed in multiple
 windows does not show phantom cursors everywhere."
-  (dolist (ov (list region-cursors--point-overlay
-                    region-cursors--mark-overlay
-                    region-cursors--rect-top-left-overlay
-                    region-cursors--rect-top-right-overlay
-                    region-cursors--rect-bottom-left-overlay
-                    region-cursors--rect-bottom-right-overlay))
+  (dolist (ov (region-cursors--all-overlays))
     (when (and (overlayp ov) (overlay-buffer ov))
       (overlay-put ov 'window win))))
 
