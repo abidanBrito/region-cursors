@@ -25,22 +25,22 @@
 
 (defcustom region-cursors-point-cursor-color nil
   "Color used for the point cursor overlay.
-When nil, inherits from the `cursor' face background color."
-  :type '(choice (const :tag "Inherit from cursor face" nil)
+When non-nil, it overrides the `region-cursors-point-face' face."
+  :type '(choice (const :tag "Use `region-cursors-point-face' face" nil)
                  color)
   :group 'region-cursors)
 
 (defcustom region-cursors-mark-cursor-color nil
   "Color for the mark cursor overlay.
-When nil, falls back to `region-cursors-point-cursor-color'."
-  :type '(choice (const :tag "Inherit from cursor color" nil)
+When non-nil, overrides the `region-cursors-mark-face' face."
+  :type '(choice (const :tag "Use `region-cursors-mark-face' face" nil)
                  color)
   :group 'region-cursors)
 
 (defcustom region-cursors-rectangle-cursor-color nil
   "Color for rectangle corner cursor overlays.
-When nil, falls back to `region-cursors-point-cursor-color'."
-  :type '(choice (const :tag "Inherit from cursor color" nil)
+When non-nil, overrides the `region-cursors-rectangle-face' face."
+  :type '(choice (const :tag "Use `region-cursors-rectangle-face' face" nil)
                  color)
   :group 'region-cursors)
 
@@ -115,6 +115,30 @@ Set to 0 to start animations immediately (no delay)."
 (defcustom region-cursors-disabled-modes '()
   "Major modes where `region-cursors' should not activate."
   :type '(repeat symbol)
+  :group 'region-cursors)
+
+(defface region-cursors-point-face
+  '((t :inherit cursor))
+  "Face for the point cursor overlay.
+Only the `:background' attribute is used.  Inherits the `cursor' face so
+that the overlay matches the real cursor and themes may override it.
+Set `region-cursors-point-cursor-color' to override it directly."
+  :group 'region-cursors)
+
+(defface region-cursors-mark-face
+  '((t))
+  "Face for the mark cursor overlay.
+Only the `:background' attribute is used.  When it specifies no background,
+the mark cursor falls back to the point cursor color.
+Set `region-cursors-mark-cursor-color' to override it directly."
+  :group 'region-cursors)
+
+(defface region-cursors-rectangle-face
+  '((t))
+  "Face for rectangle corner cursor overlays.
+Only the `:background' attribute is used.  When it specifies no background,
+the corners fall back to the point cursor color.
+Set `region-cursors-rectangle-cursor-color' to override it directly."
   :group 'region-cursors)
 
 (defconst region-cursors--cursor-saved-sentinel :saved)
@@ -199,17 +223,19 @@ Note that entries may be nil or dead, so callers should guard with `overlayp'."
 (defun region-cursors--resolve-cursor-color ()
   "Return the effective point cursor color."
   (or region-cursors-point-cursor-color
-      (face-background 'cursor nil t)
+      (face-background 'region-cursors-point-face nil t)
       "#ff6c6b"))
 
 (defun region-cursors--resolve-mark-color ()
   "Return the effective mark cursor color."
   (or region-cursors-mark-cursor-color
+      (face-background 'region-cursors-mark-face nil t)
       (region-cursors--resolve-cursor-color)))
 
 (defun region-cursors--resolve-rectangle-color ()
   "Return the effective rectangle cursor color."
   (or region-cursors-rectangle-cursor-color
+      (face-background 'region-cursors-rectangle-face nil t)
       (region-cursors--resolve-cursor-color)))
 
 (defun region-cursors--cursor-anchor (pos)
