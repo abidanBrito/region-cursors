@@ -611,14 +611,30 @@ Cleans up overlays, restores cursor and hl-line, and resets tracking variables."
       (region-cursors--cleanup-rectangle-overlays)
       (region-cursors--update-point-mark-overlays))))
 
+(defun region-cursors--restrict-overlays-to-window (win)
+  "Restrict all live cursor overlays to WIN.
+Overlays belong to a buffer, not a window.  This means that they render
+in every window showing that buffer.  Setting the `window' overlay property
+scopes each cursor to WIN, so that the same buffer displayed in multiple
+windows does not show phantom cursors everywhere."
+  (dolist (ov (list region-cursors--point-overlay
+                    region-cursors--mark-overlay
+                    region-cursors--rect-top-left-overlay
+                    region-cursors--rect-top-right-overlay
+                    region-cursors--rect-bottom-left-overlay
+                    region-cursors--rect-bottom-right-overlay))
+    (when (and (overlayp ov) (overlay-buffer ov))
+      (overlay-put ov 'window win))))
+
 (defun region-cursors--update (&optional window)
   "Update region cursor overlays.
 WINDOW is the window being redisplayed (from `pre-redisplay-functions')."
   (cond
-   ;; NOTE(abi): if called for a non-selected window, we need to clean up any
-   ;;            leftover state rather than rendering cursors in an unfocused window.
+   ;; NOTE(abi): clean up unfocused windows, but do skip when the same buffer
+   ;;            is shown in the selected window.
    ((and window (not (eq window (selected-window))))
-    (when region-cursors--region-was-active
+    (when (and region-cursors--region-was-active
+               (not (eq (current-buffer) (window-buffer (selected-window)))))
       (region-cursors--deactivate)))
 
    ((not (apply #'derived-mode-p region-cursors-disabled-modes))
@@ -661,7 +677,9 @@ WINDOW is the window being redisplayed (from `pre-redisplay-functions')."
         (if rect-active
             (region-cursors--update-rectangle-overlays)
           (region-cursors--update-point-mark-overlays)
-          (region-cursors--cleanup-rectangle-overlays)))))))
+          (region-cursors--cleanup-rectangle-overlays))
+
+        (region-cursors--restrict-overlays-to-window (or window (selected-window))))))))
 
 (defun region-cursors--reset-and-cleanup (&optional _frame)
   "Perform complete state reset and cleanup of overlays.
