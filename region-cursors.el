@@ -51,7 +51,10 @@ When nil, falls back to `region-cursors-point-cursor-color'."
   :group 'region-cursors)
 
 (defcustom region-cursors-bar-width 2
-  "Width of the bar cursor in pixels when `region-cursors-cursor-shape' is `bar`."
+  "Width of the bar cursor in pixels when `region-cursors-cursor-shape' is `bar`.
+The bar is drawn as an inserted space, so it shifts the following text by this
+many pixels as the cursor moves.  A smaller value reduces that shift; while the
+`box' shape avoids it entirely by recoloring the existing glyph."
   :type 'integer
   :safe #'integerp
   :group 'region-cursors)
@@ -503,18 +506,24 @@ If RESTORE is non-nil, reset each overlay to its own stored base color."
   (region-cursors--cleanup-rectangle-overlays))
 
 (defun region-cursors--make-overlay (pos)
-  "Create a cursor overlay at POS."
+  "Create a cursor overlay at POS.
+Sets the evaporate property on non-empty overlays; the `bar'
+shape is zero-length and would be deleted on creation otherwise."
   (let* ((range (region-cursors--overlay-range pos))
          (ov (make-overlay (car range) (cdr range) nil t nil)))
     (overlay-put ov 'priority 1000)
-    (overlay-put ov 'evaporate t)
+    (overlay-put ov 'evaporate (< (car range) (cdr range)))
     (region-cursors--apply-shape ov)
     ov))
 
 (defun region-cursors--move-overlay (ov pos)
-  "Move overlay OV to POS, handling EOF and shape."
+  "Move overlay OV to POS, handling EOF and shape.
+Clears the evaporate property before moving, so that a move to a
+zero-length range (the `bar' shape) cannot delete OV mid-move."
   (let ((range (region-cursors--overlay-range pos)))
+    (overlay-put ov 'evaporate nil)
     (move-overlay ov (car range) (cdr range))
+    (overlay-put ov 'evaporate (< (car range) (cdr range)))
 
     ;; NOTE(abi): we reapply shape after moving, just in case we land on a tab.
     (unless (timerp region-cursors--animation-timer)
