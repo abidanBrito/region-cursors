@@ -581,7 +581,8 @@ Cleans up overlays, restores cursor and hl-line, and resets tracking variables."
   (region-cursors--restore-cursor)
   (region-cursors--restore-hl-line)
   (setq region-cursors--region-was-active nil)
-  (setq region-cursors--last-region-bounds nil))
+  (setq region-cursors--last-region-bounds nil)
+  (setq region-cursors--last-window-start nil))
 
 (defun region-cursors--update-point-mark-overlays ()
   "Create or move point and mark cursor overlays."
