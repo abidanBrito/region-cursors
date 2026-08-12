@@ -506,24 +506,17 @@ If RESTORE is non-nil, reset each overlay to its own stored base color."
   (region-cursors--cleanup-rectangle-overlays))
 
 (defun region-cursors--make-overlay (pos)
-  "Create a cursor overlay at POS.
-Sets the evaporate property on non-empty overlays; the `bar'
-shape is zero-length and would be deleted on creation otherwise."
+  "Create a cursor overlay at POS."
   (let* ((range (region-cursors--overlay-range pos))
          (ov (make-overlay (car range) (cdr range) nil t nil)))
     (overlay-put ov 'priority 1000)
-    (overlay-put ov 'evaporate (< (car range) (cdr range)))
     (region-cursors--apply-shape ov)
     ov))
 
 (defun region-cursors--move-overlay (ov pos)
-  "Move overlay OV to POS, handling EOF and shape.
-Clears the evaporate property before moving, so that a move to a
-zero-length range (the `bar' shape) cannot delete OV mid-move."
+  "Move overlay OV to POS, handling EOF and shape."
   (let ((range (region-cursors--overlay-range pos)))
-    (overlay-put ov 'evaporate nil)
     (move-overlay ov (car range) (cdr range))
-    (overlay-put ov 'evaporate (< (car range) (cdr range)))
 
     ;; NOTE(abi): we reapply shape after moving, just in case we land on a tab.
     (unless (timerp region-cursors--animation-timer)
