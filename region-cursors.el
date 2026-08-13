@@ -195,7 +195,7 @@ Set `region-cursors-rectangle-cursor-color' to override it directly."
   "Track if `hl-line-mode' was active before region activation.")
 
 (defmacro region-cursors--ensure-overlay! (var pos)
-  "Ensure VAR holds a live cursor overlay at POS.
+  "Ensure VAR is a live cursor overlay at POS.
 If VAR is already a live overlay it is moved to POS; otherwise a new
 overlay is created at POS.  VAR is updated in place either way."
   `(setq ,var
