@@ -4,7 +4,7 @@
 
 ;; Author: Abidán Brito Clavijo <abidan.brito@gmail.com>
 ;; Version: 1.0
-;; Package-Requires: ((emacs "26.1"))
+;; Package-Requires: ((emacs "27.1"))
 ;; Keywords: convenience, editing, faces
 ;; URL: https://github.com/abidanBrito/region-cursors
 ;; SPDX-License-Identifier: MIT
