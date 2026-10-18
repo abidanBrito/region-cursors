@@ -65,6 +65,13 @@ many pixels as the cursor moves.  A smaller value reduces that shift; while the
   :safe #'booleanp
   :group 'region-cursors)
 
+(defcustom region-cursors-anchor-trailing-newline t
+  "Whether to draw the end cursor at EOL for whole-line (triple-click) selections.
+Set to nil to always keep the cursor exactly on the point/mark."
+  :type 'boolean
+  :safe #'booleanp
+  :group 'region-cursors)
+
 (defcustom region-cursors-animation 'pulse
   "Animation style for cursor overlays.
 - `none': no animation.
@@ -242,6 +249,19 @@ Note that entries may be nil or dead, so callers should guard with `overlayp'."
   "Return a safe overlay anchor position for POS, handling EOF."
   (if (and (= pos (point-max))
            (> pos (point-min)))
+      (1- pos)
+    pos))
+
+(defun region-cursors--trailing-newline-anchor (pos)
+  "Pull the `region-end' POS back over a trailing newline to the previous EOL.
+This only fires when both ends sit at column 0 (whole-line selection), so that
+mid-line to column-0 navigation is left alone."
+  (if (and region-cursors-anchor-trailing-newline
+           (= pos (region-end))
+           (> pos (region-beginning))
+           (> pos (point-min))
+           (eq (char-before pos) ?\n)
+           (save-excursion (goto-char (region-beginning)) (bolp)))
       (1- pos)
     pos))
 
@@ -617,8 +637,10 @@ Cleans up overlays, restores cursor and hl-line, and resets tracking variables."
 
 (defun region-cursors--update-point-mark-overlays ()
   "Create or move point and mark cursor overlays."
-  (region-cursors--ensure-overlay! region-cursors--point-overlay (point))
-  (region-cursors--ensure-overlay! region-cursors--mark-overlay (mark))
+  (region-cursors--ensure-overlay! region-cursors--point-overlay
+                                   (region-cursors--trailing-newline-anchor (point)))
+  (region-cursors--ensure-overlay! region-cursors--mark-overlay
+                                   (region-cursors--trailing-newline-anchor (mark)))
   (overlay-put region-cursors--point-overlay 'region-cursors-color
                (region-cursors--resolve-cursor-color))
   (overlay-put region-cursors--mark-overlay 'region-cursors-color
