@@ -72,6 +72,14 @@ Set to nil to always keep the cursor exactly on the point/mark."
   :safe #'booleanp
   :group 'region-cursors)
 
+(defcustom region-cursors-trim-line-selection t
+  "Whether a triple-click line selection stops at EOL.
+When non-nil, mouse line selections exclude the trailing newline, so the region
+no longer bleeds onto the next line."
+  :type 'boolean
+  :safe #'booleanp
+  :group 'region-cursors)
+
 (defcustom region-cursors-animation 'pulse
   "Animation style for cursor overlays.
 - `none': no animation.
@@ -264,6 +272,16 @@ mid-line to column-0 navigation is left alone."
            (save-excursion (goto-char (region-beginning)) (bolp)))
       (1- pos)
     pos))
+
+(defun region-cursors--trim-line-selection (fn start end mode)
+  "Clamp a mouse line selection (triple-click) to EOL.
+Advice around `mouse-start-end' (FN called with START, END and MODE)."
+  (let ((bounds (funcall fn start end mode)))
+    (if (and region-cursors-trim-line-selection
+             (= (mod mode 3) 2)
+             (eq (char-before (cadr bounds)) ?\n))
+        (list (car bounds) (1- (cadr bounds)))
+      bounds)))
 
 (defun region-cursors--overlay-range (pos)
   "Return (START . END) range for a cursor overlay at POS."
@@ -754,7 +772,9 @@ Optional _FRAME argument is ignored (for hook compatibility)."
         (add-hook 'pre-redisplay-functions #'region-cursors--update)
         (add-hook 'window-selection-change-functions #'region-cursors--reset-and-cleanup)
         (add-hook 'before-revert-hook #'region-cursors--reset-and-cleanup)
-        (add-hook 'window-scroll-functions #'region-cursors--on-scroll))
+        (add-hook 'window-scroll-functions #'region-cursors--on-scroll)
+        (advice-add 'mouse-start-end :around #'region-cursors--trim-line-selection))
+    (advice-remove 'mouse-start-end #'region-cursors--trim-line-selection)
     (remove-hook 'pre-redisplay-functions #'region-cursors--update)
     (remove-hook 'window-selection-change-functions #'region-cursors--reset-and-cleanup)
     (remove-hook 'before-revert-hook #'region-cursors--reset-and-cleanup)
