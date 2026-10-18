@@ -3,11 +3,10 @@
 #+email: abidan.brito@gmail.com
 #+options: toc:2
 
-#+html: <div align="center">
-#+html: <a href="https://github.com/abidanBrito/region-cursors/actions/workflows/melpazoid.yml"><img alt="melpazoid" src="https://github.com/abidanBrito/region-cursors/actions/workflows/melpazoid.yml/badge.svg"/></a>
-#+html: <a href="https://github.com/abidanBrito/region-cursors"><img alt="status" src="https://img.shields.io/badge/status-WIP-red.svg"/></a>
-#+html: <a href="https://github.com/abidanBrito/region-cursors/blob/main/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-brightgreen.svg"/></a>
-#+html: </div>
+[[https://github.com/abidanBrito/region-cursors/actions/workflows/compile.yml][file:https://github.com/abidanBrito/region-cursors/actions/workflows/compile.yml/badge.svg]]
+[[https://github.com/abidanBrito/region-cursors/actions/workflows/melpazoid.yml][file:https://github.com/abidanBrito/region-cursors/actions/workflows/melpazoid.yml/badge.svg]]
+[[https://img.shields.io/badge/GNU_Emacs-27.1%2B-blueviolet.svg]]
+[[https://github.com/abidanBrito/region-cursors/blob/main/LICENSE][file:https://img.shields.io/badge/License-MIT-orange.svg]]
 
 #+html: <div align="center">
 #+html: <img alt="Demo" src="img/demo.gif"/>
@@ -21,25 +20,74 @@
 - [[#Customization][Customization]]
 - [[#Contributing][Contributing]]
 - [[#License][License]]
-  
+
 * Motivation
 
 When a region is active, the cursor marks one end (the point) but the other end (the mark) has no visual indicator beyond the edge of the region highlight. =region-cursors= adds identical cursor-like overlays at both ends, making the selection clearly distinct.
 
 * Features
 
-+ Cursor overlays (box & bar shapes).
-+ Cursor animations (blinking and pulsing).
-+ Smart animation delay (starts only once the region is static).
++ Cursor overlays at both ends of the region (=box= and =bar= shapes).
++ Delayed cursor animations (blinking and pulsing) that start once the region is static.
++ Separate, theme-aware colors and faces for the point, mark, and rectangle cursors.
++ Clean whole-line selections: the end cursor sits at end of line.
 + =rectangle-mark-mode= support (experimental).
+
+Requires Emacs 27.1 or newer.
 
 * Installation
 
-** With =use-package=
+** From MELPA
 
-*** From source
+=region-cursors= is being submitted to MELPA. Once it is available, with MELPA in your =package-archives= install it with =M-x package-install RET region-cursors RET=, or use the declarative recipe:
 
-Clone the repo and point =use-package= at it:
+#+begin_src emacs-lisp
+  (use-package region-cursors
+    :ensure t
+    :config
+    (region-cursors-mode 1))
+#+end_src
+
+** From Git
+
+Using =use-package='s built-in =:vc= keyword (Emacs 30.1+):
+
+#+begin_src emacs-lisp
+  (use-package region-cursors
+    :vc (:url "https://github.com/abidanBrito/region-cursors"
+         :branch "main")
+    :config
+    (region-cursors-mode 1))
+#+end_src
+
+On Emacs 29, fetch the same recipe with =M-x package-vc-install RET https://github.com/abidanBrito/region-cursors RET=.
+
+With [[https://github.com/progfolio/elpaca][=elpaca=]] (native =use-package= integration):
+
+#+begin_src emacs-lisp
+  (use-package region-cursors
+    :ensure (:host github :repo "abidanBrito/region-cursors")
+    :config
+    (region-cursors-mode 1))
+#+end_src
+
+Or with [[https://github.com/radian-software/straight.el][=straight.el=]]:
+
+#+begin_src emacs-lisp
+  (use-package region-cursors
+    :straight (region-cursors
+               :type git :host github :repo "abidanBrito/region-cursors")
+    :config
+    (region-cursors-mode 1))
+#+end_src
+
+** From source
+
+#+begin_src sh
+  git clone https://github.com/abidanBrito/region-cursors.git ~/path/to/region-cursors
+#+end_src
+
+With =use-package=:
 
 #+begin_src emacs-lisp
   (use-package region-cursors
@@ -48,54 +96,45 @@ Clone the repo and point =use-package= at it:
     (region-cursors-mode 1))
 #+end_src
 
-*** From github using =straight.el=
-
-#+begin_src emacs-lisp
-  (use-package region-cursors
-    :straight (region-cursors
-  	     :type git
-  	     :host github
-  	     :repo "abidanBrito/region-cursors")
-    :config
-    (region-cursors-mode 1))
-#+end_src
-
-** Without =use-package=
-
-Clone the repo and load it:
+Or without =use-package=:
 
 #+begin_src emacs-lisp
   (add-to-list 'load-path "~/path/to/region-cursors")
-  
+
   (require 'region-cursors)
   (region-cursors-mode 1)
 #+end_src
 
 * Customization
 
-All options live under =M-x customize-group RET region-cursors=. Here are the main ones:
+All options live under =M-x customize-group RET region-cursors=.
 
-| Variable                              | Default | Description                                    |
-|---------------------------------------+---------+------------------------------------------------|
-| =region-cursors-cursor-color=           | =nil=     | Overlay color (inherits from =cursor= face).     |
-| =region-cursors-cursor-shape=           | =box=     | =box= or =bar=.                                    |
-| =region-cursors-bar-width=              | =2=       | Bar width in pixels.                           |
-| =region-cursors-animation=              | =none=    | =none=, =blink=, or =pulse=.                         |
-| =region-cursors-animation-interval=     | =0.75=    | Seconds between animation frames.              |
-| =region-cursors-animation-delay=        | =0.75=    | Delay before animation starts.                 |
-| =region-cursors-pulse-steps=            | =10=      | Number of steps in a pulse animation cycle.    |
-| =region-cursors-rectangle-mode-support= | =t=       | Show corner cursors in =rectangle-mark-mode=.    |
-| =region-cursors-disabled-modes=         | ='()=     | Major modes to exclude.                        |
-| =region-cursors-disable-hl-line-mode=   | =nil=     | Disable =hl-line-mode= during selection.         |
+| Variable                                | Default | Description                                               |
+|-----------------------------------------+---------+-----------------------------------------------------------|
+| =region-cursors-point-cursor-color=      | =nil=     | Point cursor color (overrides =region-cursors-point-face=). |
+| =region-cursors-mark-cursor-color=       | =nil=     | Mark cursor color (overrides =region-cursors-mark-face=).   |
+| =region-cursors-rectangle-cursor-color=  | =nil=     | Rectangle corner color (overrides the rectangle face).    |
+| =region-cursors-cursor-shape=            | =box=     | =box= or =bar=.                                             |
+| =region-cursors-bar-width=               | =2=       | Bar width in pixels (=bar= shape only).                     |
+| =region-cursors-animation=               | =pulse=   | =none=, =blink=, or =pulse=.                                  |
+| =region-cursors-animation-interval=      | =0.75=    | Seconds between animation frames.                         |
+| =region-cursors-animation-delay=         | =0.75=    | Delay before animation starts once the region is static.  |
+| =region-cursors-pulse-steps=             | =10=      | Number of steps in a pulse animation cycle.               |
+| =region-cursors-reset-animation-on-scroll= | =t=     | Reset animations when scrolling.                          |
+| =region-cursors-scroll-settle-delay=     | =0.25=    | Seconds of scroll inactivity before restarting animation. |
+| =region-cursors-anchor-trailing-newline= | =t=       | Draw the end cursor at end-of-line for whole-line selections. |
+| =region-cursors-trim-line-selection=     | =t=       | Stop a triple-click line selection before the trailing newline. |
+| =region-cursors-rectangle-mode-support=  | =nil=     | Show corner cursors in =rectangle-mark-mode= (experimental). |
+| =region-cursors-disable-hl-line-mode=    | =nil=     | Disable =hl-line-mode= while a region is active.            |
+| =region-cursors-disabled-modes=          | ='()=     | Major modes where the mode should not activate.           |
+
+For better theme integration you can also style the =region-cursors-point-face=, =region-cursors-mark-face= and =region-cursors-rectangle-face= faces directly. Note that only their =:background= is used.
 
 Example configuration:
 
 #+begin_src emacs-lisp
-   (use-package region-cursors
-    :straight (region-cursors
-        :type git
-        :host github
-        :repo "abidanBrito/region-cursors")
+  (use-package region-cursors
+    :ensure t
     :custom
     (region-cursors-cursor-shape 'box)
     (region-cursors-animation 'pulse)
@@ -107,9 +146,7 @@ Example configuration:
 
 * Contributing
 
-Contributions are welcome. Please open an issue or pull request on [[https://github.com/abidanBrito/region-cursors][GitHub]].
-
-If you find a bug, include your Emacs version (=M-x emacs-version=), the =region-cursors= settings you're using and steps to reproduce.
+Contributions are welcome. Please read [[file:CONTRIBUTING.org][CONTRIBUTING.org]] first for the workflow and guidelines, then open an [[https://github.com/abidanBrito/region-cursors/issues][issue]] and/or a [[https://github.com/abidanBrito/region-cursors/pulls][pull request]].
 
 * License
 
