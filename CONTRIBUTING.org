@@ -1,0 +1,84 @@
+#+TITLE: Contributing to region-cursors
+#+AUTHOR: Abidán Brito Clavijo
+
+This document describes how to contribute to =region-cursors= and what is expected of a change before it can be merged. Please read it carefully before opening an issue or a pull request.
+
+* TLDR
+
+1. *Open an issue first* for anything non-trivial. Don't send a feature out of the blue (simple fixes are exempt, see below).
+2. Agree on the design in that thread.
+3. Fork, branch, implement and *test* your change.
+4. Make sure it byte-compiles and lints cleanly.
+5. Open a pull request against =develop=, linking back to the issue in question (if it applies).
+
+* Open an issue before a pull request
+
+Please, for anything touching behaviour or API design, start with an issue. This is not bureaucracy for its own sake; it lets us settle design and style questions up front, so nobody spends time on a patch or a feature only to have it turned down over something that could have been sorted out in a couple comments.
+
+- *Bugs* - Open a [[https://github.com/abidanBrito/region-cursors/issues/new?template=bug_report.yml][bug report]].
+- *Features / ideas* - Open a [[https://github.com/abidanBrito/region-cursors/issues/new?template=feature_request.yml][feature request]].
+
+*Trivial changes are exempt.* That is, typos, documentation fixes and obvious few-line bug fixes can go straight to a pull request. When in doubt, open an issue first.
+
+Feature or design-related pull requests not backed by an accepted issue may be closed and redirected to one. Don't take it personally, it just keeps the project's development coherent.
+
+* On AI-assisted work
+
+Using AI tools to help write code is fine. What is *not* fine is letting a model think, commit or speak on your behalf.
+
+- *Commit messages* should mostly be written by hand.
+- *In-code comments* should explain why the code does what it does, not restate the obvious.
+- *Issue and pull request descriptions* must be written by you, in your own words. If a maintainer is to have a conversation, it should be with you, not a chatbot.
+
+You don't have to type everything yourself, but you should understand and stand behind every line you submit. As a rule of thumb, if you can't explain or vouch for something, don't include it.
+
+* Development setup
+
+You will need GNU Emacs 27.1 or newer and optionally [[https://github.com/casey/just][just]].
+
+Clone your fork and create a branch off =develop=:
+
+#+begin_src sh
+  git clone https://github.com/abidanBrito/region-cursors.git
+  cd region-cursors
+  git checkout develop
+  git checkout -b my-branch
+#+end_src
+
+The =justfile= bundles common tasks. Run =just= on its own to list them. Before pushing, your change should pass at least:
+
+#+begin_src sh
+  just build
+  just lint
+  just checkdoc
+#+end_src
+
+There is also a [[https://pre-commit.com/][pre-commit]] configuration. Installing it with =pre-commit install= will catch trailing whitespace, parenthesis mismatches and byte-compile errors automatically.
+
+* Coding style
+
+- Whenever possible, follow the conventions already present in the codebase.
+- Keep the implementation small and straightforward.
+- Public symbols should be prefixed with =region-cursors-= and internal ones with =region-cursors--=.
+- All files use =lexical-binding=.
+
+* Testing
+
+This is a visual package so automated tests only go so far. Please test your changes manually, ideally starting from =emacs -Q= with a minimal config file.
+
+- Try both cursor shapes (=box= and =bar=).
+- Check each animation style (=none=, =blink=, =pulse=).
+- When relevant, check the interaction with =hl-line-mode= and with a few different themes.
+
+For visual changes, include before & after screenshots in the pull request.
+
+* Commit history
+
+- Use the prefixes defined by the [[https://www.conventionalcommits.org/][Conventional Commits]] specification.
+- Use the imperative mood and a short, lower-case summary line, e.g. =fix: clamp cursor position to eol=.
+- Whenever possible keep commits atomic; focused on a single logical change.
+
+Note that both =main= and =develop= are protected, so all changes land
+through a reviewed pull request. Fill in the template and tick the checklist honestly.
+
+Thanks for contributing to =region-cursors=!
