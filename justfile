@@ -19,11 +19,14 @@ compile:
     @{{batch}} --eval "(setq byte-compile-error-on-warn t)" \
         -f batch-byte-compile {{files}}
 
-# Generate autoloads file
+# Generate autoloads file (API differs across Emacs versions)
 autoloads:
-    @{{batch}} --eval "(require 'loaddefs-gen)" \
-        --eval "(loaddefs-generate default-directory \
-                  (expand-file-name \"{{pkg}}-autoloads.el\"))"
+    @{{batch}} --eval "(let ((out (expand-file-name \"{{pkg}}-autoloads.el\"))) \
+        (cond ((require 'loaddefs-gen nil t) \
+               (loaddefs-generate default-directory out)) \
+              ((fboundp 'make-directory-autoloads) \
+               (make-directory-autoloads default-directory out)) \
+              (t (message \"Skipping autoloads on Emacs 27\"))))"
 
 # Verify declare-function correctness
 check:
