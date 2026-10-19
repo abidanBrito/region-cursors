@@ -3,7 +3,7 @@
 ;; Copyright (C) 2025 Abidán Brito Clavijo
 
 ;; Author: Abidán Brito Clavijo <abidan.brito@gmail.com>
-;; Version: 1.0
+;; Version: 0.1.0
 ;; Package-Requires: ((emacs "27.1"))
 ;; Keywords: convenience, editing, faces
 ;; URL: https://github.com/abidanBrito/region-cursors
