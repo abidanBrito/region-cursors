@@ -29,9 +29,8 @@ When a region is active, the cursor marks one end (the point) but the other end 
 
 + Cursor overlays at both ends of the region (=box= and =bar= shapes).
 + Delayed cursor animations (blinking and pulsing) that start once the region is static.
-+ Separate, theme-aware colors and faces for the point, mark, and rectangle cursors.
++ Separate, theme-aware colors and faces for the point and mark cursors.
 + Clean whole-line selections: the end cursor sits at end of line.
-+ =rectangle-mark-mode= support (experimental).
 
 Requires Emacs 27.1 or newer.
 
@@ -113,7 +112,6 @@ All options live under =M-x customize-group RET region-cursors=.
 |-----------------------------------------+---------+-----------------------------------------------------------|
 | =region-cursors-point-cursor-color=      | =nil=     | Point cursor color (overrides =region-cursors-point-face=). |
 | =region-cursors-mark-cursor-color=       | =nil=     | Mark cursor color (overrides =region-cursors-mark-face=).   |
-| =region-cursors-rectangle-cursor-color=  | =nil=     | Rectangle corner color (overrides the rectangle face).    |
 | =region-cursors-cursor-shape=            | =box=     | =box= or =bar=.                                             |
 | =region-cursors-bar-width=               | =2=       | Bar width in pixels (=bar= shape only).                     |
 | =region-cursors-animation=               | =pulse=   | =none=, =blink=, or =pulse=.                                  |
@@ -124,11 +122,10 @@ All options live under =M-x customize-group RET region-cursors=.
 | =region-cursors-scroll-settle-delay=     | =0.25=    | Seconds of scroll inactivity before restarting animation. |
 | =region-cursors-anchor-trailing-newline= | =t=       | Draw the end cursor at end-of-line for whole-line selections. |
 | =region-cursors-trim-line-selection=     | =t=       | Stop a triple-click line selection before the trailing newline. |
-| =region-cursors-rectangle-mode-support=  | =nil=     | Show corner cursors in =rectangle-mark-mode= (experimental). |
 | =region-cursors-disable-hl-line-mode=    | =nil=     | Disable =hl-line-mode= while a region is active.            |
 | =region-cursors-disabled-modes=          | ='()=     | Major modes where the mode should not activate.           |
 
-For better theme integration you can also style the =region-cursors-point-face=, =region-cursors-mark-face= and =region-cursors-rectangle-face= faces directly. Note that only their =:background= is used.
+For better theme integration you can also style the =region-cursors-point-face= and =region-cursors-mark-face= faces directly. Note that only their =:background= is used.
 
 Example configuration:
 

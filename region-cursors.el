@@ -37,13 +37,6 @@ When non-nil, overrides the `region-cursors-mark-face' face."
                  color)
   :group 'region-cursors)
 
-(defcustom region-cursors-rectangle-cursor-color nil
-  "Color for rectangle corner cursor overlays.
-When non-nil, overrides the `region-cursors-rectangle-face' face."
-  :type '(choice (const :tag "Use `region-cursors-rectangle-face' face" nil)
-                 color)
-  :group 'region-cursors)
-
 (defcustom region-cursors-cursor-shape 'box
   "Shape of the region cursor overlay."
   :type '(choice (const :tag "box" box)
@@ -57,12 +50,6 @@ many pixels as the cursor moves.  A smaller value reduces that shift; while the
 `box' shape avoids it entirely by recoloring the existing glyph."
   :type 'integer
   :safe #'integerp
-  :group 'region-cursors)
-
-(defcustom region-cursors-rectangle-mode-support nil
-  "Whether to show corner cursors in `rectangle-mark-mode'."
-  :type 'boolean
-  :safe #'booleanp
   :group 'region-cursors)
 
 (defcustom region-cursors-anchor-trailing-newline t
@@ -148,14 +135,6 @@ the mark cursor falls back to the point cursor color.
 Set `region-cursors-mark-cursor-color' to override it directly."
   :group 'region-cursors)
 
-(defface region-cursors-rectangle-face
-  '((t))
-  "Face for rectangle corner cursor overlays.
-Only the `:background' attribute is used.  When it specifies no background,
-the corners fall back to the point cursor color.
-Set `region-cursors-rectangle-cursor-color' to override it directly."
-  :group 'region-cursors)
-
 (defconst region-cursors--cursor-saved-sentinel :saved)
 
 (defvar-local region-cursors--point-overlay nil
@@ -163,18 +142,6 @@ Set `region-cursors-rectangle-cursor-color' to override it directly."
 
 (defvar-local region-cursors--mark-overlay nil
   "Overlay for the mark position.")
-
-(defvar-local region-cursors--rect-top-left-overlay nil
-  "Overlay for rectangle top-left corner.")
-
-(defvar-local region-cursors--rect-top-right-overlay nil
-  "Overlay for rectangle top-right corner.")
-
-(defvar-local region-cursors--rect-bottom-left-overlay nil
-  "Overlay for rectangle bottom-left corner.")
-
-(defvar-local region-cursors--rect-bottom-right-overlay nil
-  "Overlay for rectangle bottom-right corner.")
 
 (defvar-local region-cursors--region-was-active nil
   "Track if the region was active in the previous update.")
@@ -229,11 +196,7 @@ VAR must be a symbol naming a variable holding an overlay or nil."
   "Return the list of all cursor overlays.
 Note that entries may be nil or dead, so callers should guard with `overlayp'."
   (list region-cursors--point-overlay
-        region-cursors--mark-overlay
-        region-cursors--rect-top-left-overlay
-        region-cursors--rect-top-right-overlay
-        region-cursors--rect-bottom-left-overlay
-        region-cursors--rect-bottom-right-overlay))
+        region-cursors--mark-overlay))
 
 (defun region-cursors--resolve-cursor-color ()
   "Return the effective point cursor color."
@@ -245,12 +208,6 @@ Note that entries may be nil or dead, so callers should guard with `overlayp'."
   "Return the effective mark cursor color."
   (or region-cursors-mark-cursor-color
       (face-background 'region-cursors-mark-face nil t)
-      (region-cursors--resolve-cursor-color)))
-
-(defun region-cursors--resolve-rectangle-color ()
-  "Return the effective rectangle cursor color."
-  (or region-cursors-rectangle-cursor-color
-      (face-background 'region-cursors-rectangle-face nil t)
       (region-cursors--resolve-cursor-color)))
 
 (defun region-cursors--cursor-anchor (pos)
@@ -557,13 +514,6 @@ If RESTORE is non-nil, reset each overlay to its own stored base color."
   (region-cursors--delete-overlay! region-cursors--point-overlay)
   (region-cursors--delete-overlay! region-cursors--mark-overlay))
 
-(defun region-cursors--cleanup-rectangle-overlays ()
-  "Remove rectangle corner cursor overlays."
-  (region-cursors--delete-overlay! region-cursors--rect-top-left-overlay)
-  (region-cursors--delete-overlay! region-cursors--rect-top-right-overlay)
-  (region-cursors--delete-overlay! region-cursors--rect-bottom-left-overlay)
-  (region-cursors--delete-overlay! region-cursors--rect-bottom-right-overlay))
-
 (defun region-cursors--cleanup ()
   "Remove all region cursor overlays."
   (region-cursors--cancel-animation-timer)
@@ -571,8 +521,7 @@ If RESTORE is non-nil, reset each overlay to its own stored base color."
   (when (timerp region-cursors--scroll-timer)
     (cancel-timer region-cursors--scroll-timer)
     (setq region-cursors--scroll-timer nil))
-  (region-cursors--cleanup-point-mark-overlays)
-  (region-cursors--cleanup-rectangle-overlays))
+  (region-cursors--cleanup-point-mark-overlays))
 
 (defun region-cursors--make-overlay (pos)
   "Create a cursor overlay at POS."
@@ -590,58 +539,6 @@ If RESTORE is non-nil, reset each overlay to its own stored base color."
     ;; NOTE(abi): we reapply shape after moving, just in case we land on a tab.
     (unless (timerp region-cursors--animation-timer)
       (region-cursors--apply-shape ov))))
-
-(defun region-cursors--rectangle-active-p ()
-  "Return non-nil if `rectangle-mark-mode' is active."
-  (and (boundp 'rectangle-mark-mode)
-       rectangle-mark-mode
-       region-cursors-rectangle-mode-support))
-
-(defun region-cursors--get-rectangle-corners ()
-  "Return rectangle corners as (top-left top-right bottom-left bottom-right).
-Returns nil if rectangle is not valid (single line or column)."
-  (when (region-cursors--rectangle-active-p)
-    (let* ((start (region-beginning))
-           (end (region-end))
-           (start-col (save-excursion (goto-char start) (current-column)))
-           (end-col (save-excursion (goto-char end) (current-column)))
-           (start-line (line-number-at-pos start))
-           (end-line (line-number-at-pos end))
-           (left-col (min start-col end-col))
-           (right-col (max start-col end-col))
-           (top-line (min start-line end-line))
-           (bottom-line (max start-line end-line)))
-      ;; NOTE(abi): only show corners if we have an actual rectangle, not a line or a column.
-      (when (and (> (abs (- right-col left-col)) 0)
-                 (> (abs (- bottom-line top-line)) 0))
-        (list
-         ;; Top-left
-         (save-excursion
-           (goto-char (point-min))
-           (forward-line (1- top-line))
-           (move-to-column left-col)
-           (point))
-
-         ;; Top-right
-         (save-excursion
-           (goto-char (point-min))
-           (forward-line (1- top-line))
-           (move-to-column right-col)
-           (point))
-
-         ;; Bottom-left
-         (save-excursion
-           (goto-char (point-min))
-           (forward-line (1- bottom-line))
-           (move-to-column left-col)
-           (point))
-
-         ;; Bottom-right
-         (save-excursion
-           (goto-char (point-min))
-           (forward-line (1- bottom-line))
-           (move-to-column right-col)
-           (point)))))))
 
 (defun region-cursors--deactivate ()
   "Tear down all active region cursor state.
@@ -669,22 +566,6 @@ Cleans up overlays, restores cursor and hl-line, and resets tracking variables."
     (region-cursors--apply-shape region-cursors--mark-overlay
                                  (region-cursors--resolve-mark-color))))
 
-(defun region-cursors--update-rectangle-overlays ()
-  "Create or move rectangle corner overlays."
-  (let ((corners (region-cursors--get-rectangle-corners)))
-    (if corners
-        (progn
-          (region-cursors--ensure-overlay! region-cursors--rect-top-left-overlay (nth 0 corners))
-          (region-cursors--ensure-overlay! region-cursors--rect-top-right-overlay (nth 1 corners))
-          (region-cursors--ensure-overlay! region-cursors--rect-bottom-left-overlay (nth 2 corners))
-          (region-cursors--ensure-overlay! region-cursors--rect-bottom-right-overlay (nth 3 corners))
-          (region-cursors--cleanup-point-mark-overlays))
-
-      ;; Clean up any stale overlays and fall back to point/mark
-      ;; cursors so that we always show something.
-      (region-cursors--cleanup-rectangle-overlays)
-      (region-cursors--update-point-mark-overlays))))
-
 (defun region-cursors--restrict-overlays-to-window (win)
   "Restrict all live cursor overlays to WIN.
 Overlays belong to a buffer, not a window.  This means that they render
@@ -707,8 +588,7 @@ WINDOW is the window being redisplayed (from `pre-redisplay-functions')."
       (region-cursors--deactivate)))
 
    ((not (apply #'derived-mode-p region-cursors-disabled-modes))
-    (let ((region-active (use-region-p))
-          (rect-active (region-cursors--rectangle-active-p)))
+    (let ((region-active (use-region-p)))
       (cond
        ;; Activation
        ((and region-active (not region-cursors--region-was-active))
@@ -743,10 +623,7 @@ WINDOW is the window being redisplayed (from `pre-redisplay-functions')."
           (region-cursors--stop-animation)
           (region-cursors--start-animation-delayed))
 
-        (if rect-active
-            (region-cursors--update-rectangle-overlays)
-          (region-cursors--update-point-mark-overlays)
-          (region-cursors--cleanup-rectangle-overlays))
+        (region-cursors--update-point-mark-overlays)
 
         (region-cursors--restrict-overlays-to-window (or window (selected-window))))))))
 
