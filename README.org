@@ -61,7 +61,7 @@ Using =use-package='s built-in =:vc= keyword (Emacs 30.1+):
 
 On Emacs 29, fetch the same recipe with =M-x package-vc-install RET https://github.com/abidanBrito/region-cursors RET=.
 
-With [[https://github.com/progfolio/elpaca][=elpaca=]] (native =use-package= integration):
+With [[https://github.com/progfolio/elpaca][elpaca]] (native =use-package= integration):
 
 #+begin_src emacs-lisp
   (use-package region-cursors
@@ -70,7 +70,7 @@ With [[https://github.com/progfolio/elpaca][=elpaca=]] (native =use-package= int
     (region-cursors-mode 1))
 #+end_src
 
-Or with [[https://github.com/radian-software/straight.el][=straight.el=]]:
+Or with [[https://github.com/radian-software/straight.el][straight.el]]:
 
 #+begin_src emacs-lisp
   (use-package region-cursors
