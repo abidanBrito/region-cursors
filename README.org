@@ -6,6 +6,7 @@
 [[https://github.com/abidanBrito/region-cursors/actions/workflows/compile.yml][file:https://github.com/abidanBrito/region-cursors/actions/workflows/compile.yml/badge.svg]]
 [[https://github.com/abidanBrito/region-cursors/actions/workflows/melpazoid.yml][file:https://github.com/abidanBrito/region-cursors/actions/workflows/melpazoid.yml/badge.svg]]
 [[https://img.shields.io/badge/GNU_Emacs-27.1%2B-blueviolet.svg]]
+[[https://melpa.org/#/region-cursors][file:https://melpa.org/packages/region-cursors-badge.svg]]
 [[https://github.com/abidanBrito/region-cursors/blob/main/LICENSE][file:https://img.shields.io/badge/License-MIT-orange.svg]]
 
 #+html: <div align="center">
@@ -38,7 +39,7 @@ Requires Emacs 27.1 or newer.
 
 ** From MELPA
 
-=region-cursors= is being submitted to MELPA. Once it is available, with MELPA in your =package-archives= install it with =M-x package-install RET region-cursors RET=, or use the declarative recipe:
+=region-cursors= is available on MELPA. With MELPA in your =package-archives=, install it with =M-x package-install RET region-cursors RET=, or use the declarative recipe:
 
 #+begin_src emacs-lisp
   (use-package region-cursors
