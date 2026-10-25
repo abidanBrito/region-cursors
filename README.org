@@ -7,6 +7,7 @@
 [[https://github.com/abidanBrito/region-cursors/actions/workflows/melpazoid.yml][file:https://github.com/abidanBrito/region-cursors/actions/workflows/melpazoid.yml/badge.svg]]
 [[https://img.shields.io/badge/GNU_Emacs-27.1%2B-blueviolet.svg]]
 [[https://melpa.org/#/region-cursors][file:https://melpa.org/packages/region-cursors-badge.svg]]
+[[https://stable.melpa.org/#/region-cursors][file:https://stable.melpa.org/packages/region-cursors-badge.svg]]
 [[https://github.com/abidanBrito/region-cursors/blob/main/LICENSE][file:https://img.shields.io/badge/License-MIT-orange.svg]]
 
 #+html: <div align="center">
